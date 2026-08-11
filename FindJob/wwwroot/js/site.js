@@ -131,6 +131,18 @@ function initDropzone() {
 
     if (!dropzone || !fileInput) return;
 
+    // Prevent default drag & drop behaviors across the entire window so dropping never opens the file in browser
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        window.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+        document.body.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
     btnBrowse?.addEventListener('click', (e) => {
         e.stopPropagation();
         fileInput.click();
@@ -138,20 +150,44 @@ function initDropzone() {
 
     dropzone.addEventListener('click', () => fileInput.click());
 
-    dropzone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropzone.classList.add('dragover');
+    // Highlight dropzone on drag
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('dragover');
+        }, false);
     });
 
-    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    ['dragleave', 'dragend'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('dragover');
+        }, false);
+    });
 
     dropzone.addEventListener('drop', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         dropzone.classList.remove('dragover');
-        if (e.dataTransfer.files.length > 0) {
-            handleFile(e.dataTransfer.files[0]);
+
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+            const droppedFile = dt.files[0];
+            
+            // Assign dropped file to the HTML input element via DataTransfer API
+            try {
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(droppedFile);
+                fileInput.files = dataTransfer.files;
+            } catch (err) {
+                console.warn('DataTransfer assignment fallback:', err);
+            }
+
+            handleFile(droppedFile);
         }
-    });
+    }, false);
 
     fileInput.addEventListener('change', () => {
         if (fileInput.files && fileInput.files.length > 0) {
@@ -175,11 +211,13 @@ function initDropzone() {
 
         if (!validExtensions.includes(ext)) {
             alert(`Unsupported file format '${ext}'. Please upload a PDF, DOCX, or TXT file.`);
+            fileInput.value = '';
             return;
         }
 
         if (file.size > maxBytes) {
             alert(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds maximum limit of 5 MB.`);
+            fileInput.value = '';
             return;
         }
 
