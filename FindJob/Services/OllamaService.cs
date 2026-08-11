@@ -398,14 +398,112 @@ Write exactly 2 clear, professional sentences explaining why the candidate recei
         var titleMatch = Regex.Match(raw, @"\b(Senior\s+Software\s+Engineer|Full\s+Stack\s+Developer|Software\s+Engineer|Backend\s+Developer|Frontend\s+Developer|Tech\s+Lead|DevOps\s+Engineer)\b", RegexOptions.IgnoreCase);
         if (titleMatch.Success) title = titleMatch.Groups[1].Value;
 
+        string candidateName = !string.IsNullOrWhiteSpace(resume.CandidateName) && !resume.CandidateName.Equals("Candidate", StringComparison.OrdinalIgnoreCase)
+            ? resume.CandidateName
+            : ExtractCandidateNameFromRawText(raw);
+
         return new ExtractedResumeProfile
         {
-            CandidateName = resume.CandidateName ?? "Candidate",
+            CandidateName = string.IsNullOrWhiteSpace(candidateName) ? "Candidate" : candidateName,
             CurrentTitle = title,
             TotalYearsExperience = years,
             Degree = degree,
             Skills = skills.ToList()
         };
+    }
+
+    private static string ExtractCandidateNameFromRawText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return "Candidate";
+        var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var ignoreWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "resume", "curriculum vitae", "curriculum", "vitae", "cv", "profile", "summary", "page",
+            "contact", "information", "personal details", "bio data", "experience", "education",
+            "skills", "projects", "objective", "career objective", "confidential", "applicant",
+            "phone", "email", "address", "details", "overview", "location", "city", "country",
+            "street", "road", "house", "flat", "postal", "zip", "mobile", "tel", "fax",
+            "dhaka", "bangladesh", "chattogram", "sylhet", "rajshahi", "khulna", "barishal", "rangpur",
+            "developer", "engineer", "architect", "manager", "lead", "specialist", "consultant"
+        };
+
+        for (int i = 0; i < Math.Min(15, lines.Length); i++)
+        {
+            var line = lines[i].Trim();
+            if (string.IsNullOrWhiteSpace(line) || line.Length < 3 || line.Length > 45) continue;
+
+            if (line.Contains('@') || 
+                line.Contains("http", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("github", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("linkedin", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains(':') || line.Contains('|') || line.Contains('/') || line.Contains('\\') ||
+                line.Contains("phone", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("email", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("mobile", StringComparison.OrdinalIgnoreCase) ||
+                Regex.IsMatch(line, @"\d{5,}"))
+            {
+                continue;
+            }
+
+            var cleanLine = Regex.Replace(line, @"[^\w\s\.\'\-]", "").Trim();
+            if (ignoreWords.Contains(cleanLine)) continue;
+
+            var words = cleanLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length >= 2 && words.Length <= 5)
+            {
+                bool isNameCandidate = words.All(w => 
+                    Regex.IsMatch(w, @"^(?:[A-Z][a-z\.\'\-]*|[A-Z]{2,}|[a-z]{1,2}\.)$", RegexOptions.IgnoreCase)
+                );
+
+                if (isNameCandidate && !words.Any(w => ignoreWords.Contains(w)))
+                {
+                    return FormatCandidateName(cleanLine);
+                }
+            }
+        }
+
+        var emailMatch = Regex.Match(text, @"\b([a-zA-Z0-9\._\-]+)@[a-zA-Z0-9\.\-]+\.[a-zA-Z]{2,}\b");
+        if (emailMatch.Success)
+        {
+            var username = emailMatch.Groups[1].Value;
+            var noiseEmailWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "cs", "dev", "eng", "it", "official", "job", "work", "mail", "gmail", "yahoo", "com", "net", "org"
+            };
+
+            var nameParts = Regex.Replace(username, @"\d+", "")
+                .Split(new[] { '.', '_', '-' }, StringSplitOptions.RemoveEmptyEntries)
+                .Where(p => p.Length >= 2 && !ignoreWords.Contains(p) && !noiseEmailWords.Contains(p))
+                .Select(p => char.ToUpper(p[0]) + p[1..].ToLowerInvariant())
+                .ToList();
+
+            if (nameParts.Count >= 2) return string.Join(" ", nameParts);
+            if (nameParts.Count == 1) return nameParts[0];
+        }
+
+        return "Candidate";
+    }
+
+    private static string FormatCandidateName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return name;
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var formatted = words.Select(w =>
+        {
+            var clean = w.Trim();
+            if (clean.Equals("MD.", StringComparison.OrdinalIgnoreCase) || clean.Equals("MD", StringComparison.OrdinalIgnoreCase)) return "Md.";
+            if (clean.Equals("DR.", StringComparison.OrdinalIgnoreCase) || clean.Equals("DR", StringComparison.OrdinalIgnoreCase)) return "Dr.";
+            if (clean.Equals("ENGR.", StringComparison.OrdinalIgnoreCase) || clean.Equals("ENGR", StringComparison.OrdinalIgnoreCase)) return "Engr.";
+            if (clean.Equals("MR.", StringComparison.OrdinalIgnoreCase) || clean.Equals("MR", StringComparison.OrdinalIgnoreCase)) return "Mr.";
+            if (clean.Equals("MS.", StringComparison.OrdinalIgnoreCase) || clean.Equals("MS", StringComparison.OrdinalIgnoreCase)) return "Ms.";
+
+            if (clean.All(char.IsUpper) && clean.Length >= 2)
+            {
+                return char.ToUpper(clean[0]) + clean[1..].ToLowerInvariant();
+            }
+            return char.ToUpper(clean[0]) + (clean.Length > 1 ? clean[1..] : "");
+        });
+        return string.Join(" ", formatted);
     }
 
     private static ExtractedJdProfile HeuristicExtractJd(JobData job)

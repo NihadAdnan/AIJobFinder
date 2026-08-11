@@ -331,10 +331,10 @@
                     
                     <div class="card glass-card job-result-card border-0 shadow-sm rounded-4 overflow-hidden @(isTopRank ? "border-highlight" : "")">
                         <div class="card-body p-3 p-md-4">
-                            <div class="row g-3 align-items-start">
+                            <div class="row g-3 align-items-stretch">
                                 <!-- Rank & Score Gauge Column -->
-                                <div class="col-lg-2 col-md-3 text-center d-flex flex-column align-items-center justify-content-center">
-                                    <div class="rank-badge mb-1">
+                                <div class="col-lg-2 col-md-3 text-center d-flex flex-column align-items-center justify-content-between py-2">
+                                    <div class="rank-badge mb-3 w-100">
                                         @if (rank == 1)
                                         {
                                             <span class="badge bg-warning text-dark rounded-pill px-3 py-1 fw-bold shadow-sm extra-small">
@@ -357,14 +357,14 @@
 
                                     @if (job.IsSuccess)
                                     {
-                                        <div class="score-circle @scoreClass my-1">
+                                        <div class="score-circle @scoreClass my-auto">
                                             <div class="score-value fw-bold">@job.Score</div>
                                             <div class="score-label extra-small text-muted">/ 100</div>
                                         </div>
                                     }
                                     else
                                     {
-                                        <div class="text-danger my-2">
+                                        <div class="text-danger my-auto">
                                             <i class="bi bi-exclamation-circle fs-3"></i>
                                             <div class="extra-small fw-semibold">Unavailable</div>
                                         </div>

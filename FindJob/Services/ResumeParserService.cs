@@ -173,16 +173,110 @@ public partial class ResumeParserService : IResumeParserService
 
     private static string? ExtractCandidateName(string text)
     {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
         var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (lines.Length > 0)
+        var ignoreWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            var firstLine = lines[0];
-            if (firstLine.Length <= 50 && !firstLine.Contains(':') && !firstLine.Contains('@') && !firstLine.Contains("http"))
+            "resume", "curriculum vitae", "curriculum", "vitae", "cv", "profile", "summary", "page",
+            "contact", "information", "personal details", "bio data", "experience", "education",
+            "skills", "projects", "objective", "career objective", "confidential", "applicant",
+            "phone", "email", "address", "details", "overview", "location", "city", "country",
+            "street", "road", "house", "flat", "postal", "zip", "mobile", "tel", "fax",
+            "dhaka", "bangladesh", "chattogram", "sylhet", "rajshahi", "khulna", "barishal", "rangpur",
+            "developer", "engineer", "architect", "manager", "lead", "specialist", "consultant"
+        };
+
+        // Inspect the first 15 lines of text
+        for (int i = 0; i < Math.Min(15, lines.Length); i++)
+        {
+            var line = lines[i].Trim();
+            if (string.IsNullOrWhiteSpace(line) || line.Length < 3 || line.Length > 45) continue;
+
+            // Skip lines containing contact markers, URLs, emails, phone numbers, or delimiters
+            if (line.Contains('@') || 
+                line.Contains("http", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("github", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("linkedin", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains(':') || line.Contains('|') || line.Contains('/') || line.Contains('\\') ||
+                line.Contains("phone", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("email", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("mobile", StringComparison.OrdinalIgnoreCase) ||
+                Regex.IsMatch(line, @"\d{5,}"))
             {
-                return firstLine;
+                continue;
+            }
+
+            var cleanLine = Regex.Replace(line, @"[^\w\s\.\'\-]", "").Trim();
+            if (ignoreWords.Contains(cleanLine))
+            {
+                continue;
+            }
+
+            var words = cleanLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length >= 2 && words.Length <= 5)
+            {
+                // Verify all words look like candidate name components
+                bool isNameCandidate = words.All(w => 
+                    Regex.IsMatch(w, @"^(?:[A-Z][a-z\.\'\-]*|[A-Z]{2,}|[a-z]{1,2}\.)$", RegexOptions.IgnoreCase)
+                );
+
+                if (isNameCandidate && !words.Any(w => ignoreWords.Contains(w)))
+                {
+                    return FormatCandidateName(cleanLine);
+                }
             }
         }
+
+        // Fallback: Infer candidate name from email address
+        var emailMatch = Regex.Match(text, @"\b([a-zA-Z0-9\._\-]+)@[a-zA-Z0-9\.\-]+\.[a-zA-Z]{2,}\b");
+        if (emailMatch.Success)
+        {
+            var username = emailMatch.Groups[1].Value;
+            var noiseEmailWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "cs", "dev", "eng", "it", "official", "job", "work", "mail", "gmail", "yahoo", "com", "net", "org"
+            };
+
+            var nameParts = Regex.Replace(username, @"\d+", "")
+                .Split(new[] { '.', '_', '-' }, StringSplitOptions.RemoveEmptyEntries)
+                .Where(p => p.Length >= 2 && !ignoreWords.Contains(p) && !noiseEmailWords.Contains(p))
+                .Select(p => char.ToUpper(p[0]) + p[1..].ToLowerInvariant())
+                .ToList();
+
+            if (nameParts.Count >= 2)
+            {
+                return string.Join(" ", nameParts);
+            }
+            else if (nameParts.Count == 1)
+            {
+                return nameParts[0];
+            }
+        }
+
         return null;
+    }
+
+    private static string FormatCandidateName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return name;
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var formatted = words.Select(w =>
+        {
+            var clean = w.Trim();
+            if (clean.Equals("MD.", StringComparison.OrdinalIgnoreCase) || clean.Equals("MD", StringComparison.OrdinalIgnoreCase)) return "Md.";
+            if (clean.Equals("DR.", StringComparison.OrdinalIgnoreCase) || clean.Equals("DR", StringComparison.OrdinalIgnoreCase)) return "Dr.";
+            if (clean.Equals("ENGR.", StringComparison.OrdinalIgnoreCase) || clean.Equals("ENGR", StringComparison.OrdinalIgnoreCase)) return "Engr.";
+            if (clean.Equals("MR.", StringComparison.OrdinalIgnoreCase) || clean.Equals("MR", StringComparison.OrdinalIgnoreCase)) return "Mr.";
+            if (clean.Equals("MS.", StringComparison.OrdinalIgnoreCase) || clean.Equals("MS", StringComparison.OrdinalIgnoreCase)) return "Ms.";
+
+            if (clean.All(char.IsUpper) && clean.Length >= 2)
+            {
+                return char.ToUpper(clean[0]) + clean[1..].ToLowerInvariant();
+            }
+            return char.ToUpper(clean[0]) + (clean.Length > 1 ? clean[1..] : "");
+        });
+        return string.Join(" ", formatted);
     }
 
     private static List<TextChunk> ChunkResumeText(string rawText)

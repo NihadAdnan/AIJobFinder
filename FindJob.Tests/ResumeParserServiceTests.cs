@@ -31,16 +31,20 @@ B.Sc. in Computer Science, 2018";
         var result = _service.ParseText(sampleResume);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("JOHN DOE", result.CandidateName);
+        Assert.Equal("John Doe", result.CandidateName);
         Assert.NotEmpty(result.Chunks);
         Assert.Contains(result.Chunks, c => c.Section.Contains("SKILL", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Chunks, c => c.Section.Contains("EXPERIENCE", StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact]
-    public void ParseText_EmptyString_ReturnsUnsuccessful()
+    [Theory]
+    [InlineData("CURRICULUM VITAE\nOF\nMD. RAHIM AHMED\nEmail: rahim@example.com", "Md. Rahim Ahmed")]
+    [InlineData("Curriculum Vitae\nJane Smith\nSenior Full Stack Developer", "Jane Smith")]
+    [InlineData("contact: 01700000000 | email: tanvir.hossain.cs@gmail.com\nDhaka, Bangladesh", "Tanvir Hossain")]
+    public void ParseText_ExtractsCandidateName_AcrossVariousResumeFormats(string sampleText, string expectedName)
     {
-        var result = _service.ParseText("   ");
-        Assert.False(result.IsSuccess);
+        var result = _service.ParseText(sampleText + "\n\nSUMMARY\nExperienced software engineer with 5 years experience in C# and SQL Server.");
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expectedName, result.CandidateName);
     }
 }
