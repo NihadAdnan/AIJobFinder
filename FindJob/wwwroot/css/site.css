@@ -1,13 +1,13 @@
-/* Modern Design System for AI Job Finder */
+/* Rich Aesthetic Design System for AI Job Finder */
 :root {
     --font-primary: 'Inter', system-ui, -apple-system, sans-serif;
     --font-heading: 'Outfit', var(--font-primary);
     
     --brand-primary: #3b82f6;
     --brand-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
-    --card-bg-dark: rgba(18, 24, 38, 0.75);
-    --card-border-dark: rgba(255, 255, 255, 0.08);
-    --card-bg-light: rgba(255, 255, 255, 0.85);
+    --card-bg-dark: rgba(15, 23, 42, 0.75);
+    --card-border-dark: rgba(255, 255, 255, 0.1);
+    --card-bg-light: rgba(255, 255, 255, 0.88);
     --card-border-light: rgba(0, 0, 0, 0.08);
     
     --score-high: #10b981;
@@ -20,6 +20,7 @@
     --card-glass: var(--card-bg-dark);
     --card-border: var(--card-border-dark);
     --navbar-glass: rgba(11, 15, 25, 0.85);
+    --body-text: #f1f5f9;
 }
 
 [data-bs-theme="light"] {
@@ -27,6 +28,7 @@
     --card-glass: var(--card-bg-light);
     --card-border: var(--card-border-light);
     --navbar-glass: rgba(248, 250, 252, 0.85);
+    --body-text: #0f172a;
 }
 
 body {
@@ -66,12 +68,12 @@ h1, h2, h3, h4, h5, h6, .brand-title {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--card-border) !important;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .border-highlight {
     border: 2px solid rgba(245, 158, 11, 0.6) !important;
-    box-shadow: 0 0 25px rgba(245, 158, 11, 0.15) !important;
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.18) !important;
 }
 
 /* Brand Icon Box */
@@ -84,8 +86,9 @@ h1, h2, h3, h4, h5, h6, .brand-title {
     align-items: center;
     justify-content: center;
     color: #ffffff;
-    font-size: 1.25rem;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+    font-size: 1.2rem;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+    animation: float 4s ease-in-out infinite;
 }
 
 .brand-title {
@@ -117,114 +120,145 @@ h1, h2, h3, h4, h5, h6, .brand-title {
     animation: pulse 1.5s infinite;
 }
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.4; transform: scale(0.85); }
-}
-
 /* Dropzone styling */
 .dropzone-area {
     border: 2px dashed rgba(59, 130, 246, 0.35);
     background: rgba(59, 130, 246, 0.03);
     cursor: pointer;
-    transition: all 0.25s ease;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dropzone-area:hover, .dropzone-area.dragover {
     border-color: #3b82f6;
     background: rgba(59, 130, 246, 0.08);
     transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.15);
 }
 
 .dropzone-icon-box {
-    width: 64px;
-    height: 64px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     background: rgba(59, 130, 246, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.25s ease;
+}
+
+.dropzone-area:hover .dropzone-icon-box {
+    transform: scale(1.1);
 }
 
 /* URL Input Styling */
 .url-field:focus {
     border-color: #3b82f6;
-    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.15);
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.18);
 }
 
 /* Score Circle Gauge */
 .score-circle {
-    width: 68px;
-    height: 68px;
+    width: 76px;
+    height: 76px;
     border-radius: 50%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     position: relative;
-    border: 3px solid currentColor;
+    border: 3.5px solid currentColor;
     transition: all 0.3s ease;
 }
 
 .score-circle.score-high {
     color: var(--score-high);
     background: rgba(16, 185, 129, 0.08);
-    box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.25);
 }
 
 .score-circle.score-med {
     color: var(--score-med);
     background: rgba(245, 158, 11, 0.08);
-    box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.25);
 }
 
 .score-circle.score-low {
     color: var(--score-low);
     background: rgba(239, 68, 68, 0.08);
-    box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.25);
 }
 
 .score-value {
-    font-size: 1.5rem;
+    font-size: 1.45rem;
     line-height: 1;
     font-family: var(--font-heading);
 }
 
 .shadow-primary {
+    background: var(--brand-gradient);
+    border: none;
     box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .shadow-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.55);
+}
+
+.job-result-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .job-result-card:hover {
     transform: translateY(-3px);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15) !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* Typography utilities */
-.extra-small {
-    font-size: 0.75rem;
+/* Animations */
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-4px); }
 }
 
-.line-height-relaxed {
-    line-height: 1.6;
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.spin {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .progress-step {
-    transition: color 0.3s ease;
+    transition: all 0.3s ease;
+    padding: 4px 8px;
+    border-radius: 6px;
 }
 
 .progress-step.step-active {
     font-weight: 600;
     color: var(--brand-primary);
+    background: rgba(59, 130, 246, 0.08);
 }
 
 .progress-step.step-completed {
     color: #10b981;
+}
+
+/* Typography utilities */
+.extra-small {
+    font-size: 0.78rem;
+}
+
+.line-height-relaxed {
+    line-height: 1.6;
 }
 
 @media (min-width: 768px) {

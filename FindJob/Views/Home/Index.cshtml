@@ -1,21 +1,24 @@
 @model FindJob.Models.JobFinderResultViewModel
 @{
-    ViewData["Title"] = "AI Job Finder";
+    ViewData["Title"] = "AI Job Finder - Match Resume Against Bdjobs";
 }
 
 <div class="row g-4 justify-content-center">
     <!-- Hero Header -->
     <div class="col-12 text-center my-2">
+        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-primary bg-opacity-10 border border-primary border-opacity-25 text-primary mb-2 small fw-semibold">
+            <i class="bi bi-stars"></i> AI-Powered Job Matching
+        </div>
         <h1 class="display-6 fw-bold tracking-tight mb-2">
             Match Your Resume Against <span class="text-gradient">Bdjobs Postings</span>
         </h1>
-        <p class="text-muted mx-auto mb-3" style="max-width: 600px;">
-            Upload your resume and paste up to 5 Bdjobs URLs to get an instant ranked match analysis.
+        <p class="text-muted mx-auto mb-3" style="max-width: 620px;">
+            Upload your resume and paste up to 5 Bdjobs URLs to get an instant ranked match breakdown.
         </p>
 
         <div class="d-flex justify-content-center gap-2">
-            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" id="btnLoadDemo">
-                <i class="bi bi-magic me-1"></i> Try Demo
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm" id="btnLoadDemo">
+                <i class="bi bi-magic me-1"></i> Try Demo Preset
             </button>
             <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" id="btnClearForm">
                 <i class="bi bi-trash3 me-1"></i> Clear
@@ -29,7 +32,7 @@
         <div class="col-lg-10">
             <div class="alert alert-danger d-flex align-items-center justify-content-between p-3 rounded-4 shadow-sm border-danger border-opacity-25" role="alert">
                 <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+                    <i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i>
                     <span>@Model.ErrorMessage</span>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -37,7 +40,7 @@
         </div>
     }
 
-    <!-- Input Form Section -->
+    <!-- Main Input Form -->
     <div class="col-lg-11 col-xl-10">
         <form asp-controller="Home" asp-action="Analyze" method="post" enctype="multipart/form-data" id="jobFinderForm">
             @Html.AntiForgeryToken()
@@ -52,7 +55,7 @@
                     <div class="card glass-card h-100 border-0 shadow-sm p-4 rounded-4 d-flex flex-column">
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <h6 class="fw-bold m-0 d-flex align-items-center gap-2">
-                                <i class="bi bi-file-earmark-person-fill text-primary"></i> 1. Resume
+                                <i class="bi bi-file-earmark-person-fill text-primary fs-5"></i> 1. Upload Resume
                             </h6>
                             <span class="badge bg-body-tertiary text-muted border border-secondary-subtle">PDF, DOCX</span>
                         </div>
@@ -64,21 +67,22 @@
                                 <i class="bi bi-cloud-arrow-up-fill fs-2 text-primary"></i>
                             </div>
                             <div class="fw-semibold small mb-1">Drag &amp; drop resume here</div>
-                            <div class="text-muted extra-small">or <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none fw-semibold" id="btnBrowseFile">browse file</button></div>
+                            <div class="text-muted extra-small">or <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none fw-semibold" id="btnBrowseFile">browse from computer</button></div>
+                            <span class="badge bg-secondary-subtle text-secondary extra-small mt-3">Max size: 5 MB</span>
                         </div>
 
                         <!-- Selected File Preview Card -->
                         <div class="file-preview-card mt-3 p-3 rounded-3 bg-body-tertiary border border-secondary-subtle d-none" id="filePreviewCard">
                             <div class="d-flex align-items-center justify-content-between">
                                 <div class="d-flex align-items-center gap-2 overflow-hidden">
-                                    <i class="bi bi-file-earmark-text-fill text-primary fs-5"></i>
+                                    <i class="bi bi-file-earmark-text-fill text-primary fs-4" id="filePreviewIcon"></i>
                                     <div class="text-truncate">
                                         <div class="fw-semibold text-truncate small" id="filePreviewName">resume.pdf</div>
                                         <div class="text-muted extra-small" id="filePreviewSize">124 KB</div>
                                     </div>
                                 </div>
                                 <button type="button" class="btn btn-sm btn-outline-danger rounded-circle p-1" id="btnRemoveFile" title="Remove">
-                                    <i class="bi bi-x"></i>
+                                    <i class="bi bi-x fs-5"></i>
                                 </button>
                             </div>
                         </div>
@@ -90,9 +94,9 @@
                     <div class="card glass-card h-100 border-0 shadow-sm p-4 rounded-4 d-flex flex-column">
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <h6 class="fw-bold m-0 d-flex align-items-center gap-2">
-                                <i class="bi bi-link-45deg text-primary fs-5"></i> 2. Bdjobs URLs (1–5)
+                                <i class="bi bi-link-45deg text-primary fs-4"></i> 2. Bdjobs URLs (Up to 5)
                             </h6>
-                            <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 extra-small" id="btnPasteClipboard">
+                            <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 extra-small" id="btnPasteClipboard" title="Paste from clipboard">
                                 <i class="bi bi-clipboard-plus me-1"></i> Paste Next
                             </button>
                         </div>
@@ -104,7 +108,7 @@
                                 var index = i;
                                 <div class="url-input-row" data-row="@index">
                                     <div class="input-group">
-                                        <span class="input-group-text bg-body-tertiary text-muted extra-small">
+                                        <span class="input-group-text bg-body-tertiary text-muted extra-small fw-semibold">
                                             #@(index + 1)
                                         </span>
                                         <input type="text" 
@@ -117,7 +121,7 @@
                                             <span class="badge bg-success-subtle text-success extra-small">ID: <span class="id-text"></span></span>
                                         </span>
                                         <button class="btn btn-sm btn-outline-secondary btn-clear-url" type="button" data-target="@index" title="Clear">
-                                            <i class="bi bi-x"></i>
+                                            <i class="bi bi-x-lg"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -126,7 +130,7 @@
 
                         <!-- Submit Button -->
                         <div class="mt-auto pt-3">
-                            <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill fw-bold shadow-primary d-flex align-items-center justify-content-center gap-2" id="btnSubmitAnalysis">
+                            <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-primary text-uppercase tracking-wider d-flex align-items-center justify-content-center gap-2" id="btnSubmitAnalysis">
                                 <i class="bi bi-lightning-charge-fill"></i> Analyze &amp; Rank Matches
                             </button>
                         </div>
@@ -136,22 +140,41 @@
         </form>
     </div>
 
-    <!-- Processing Progress Overlay Modal -->
+    <!-- Processing Progress Overlay Modal with 5 animated stages -->
     <div class="modal fade" id="progressModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content glass-card border-0 shadow-lg p-4 text-center rounded-4">
-                <div class="my-3">
-                    <div class="spinner-grow text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+                <div class="my-2">
+                    <div class="spinner-grow text-primary mb-3" style="width: 3.2rem; height: 3.2rem;" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
-                    <h5 class="fw-bold mb-1" id="progressStatusTitle">Analyzing Job Matches...</h5>
-                    <p class="text-muted extra-small mb-3" id="progressStatusSubtitle">Comparing resume qualifications against Bdjobs postings</p>
+                    <h5 class="fw-bold mb-1" id="progressStatusTitle">Running AI Job Matching...</h5>
+                    <p class="text-muted extra-small mb-3" id="progressStatusSubtitle">In-memory analysis in progress</p>
+
+                    <!-- Animated 5 Steps List -->
+                    <div class="d-flex flex-column gap-2 text-start px-2 mb-3">
+                        <div class="d-flex align-items-center gap-2 extra-small progress-step step-active" id="step1">
+                            <i class="bi bi-check-circle-fill text-primary"></i> <span>1. Parsing resume text &amp; chunking qualifications</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 extra-small progress-step" id="step2">
+                            <i class="bi bi-circle text-muted"></i> <span>2. Fetching Bdjobs postings from gateway</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 extra-small progress-step" id="step3">
+                            <i class="bi bi-circle text-muted"></i> <span>3. Generating in-memory vector embeddings</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 extra-small progress-step" id="step4">
+                            <i class="bi bi-circle text-muted"></i> <span>4. Computing qualification similarity matches</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 extra-small progress-step" id="step5">
+                            <i class="bi bi-circle text-muted"></i> <span>5. Scoring, identifying skill gaps &amp; ranking</span>
+                        </div>
+                    </div>
 
                     <div class="progress mb-2 rounded-pill" style="height: 6px;">
                         <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" id="progressBar" style="width: 25%"></div>
                     </div>
                     <div class="text-muted extra-small">
-                        Elapsed: <span id="elapsedTimer">0s</span>
+                        Elapsed Time: <span id="elapsedTimer" class="fw-semibold text-body">0s</span>
                     </div>
                 </div>
             </div>
@@ -167,12 +190,14 @@
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1 fw-semibold">
-                            <i class="bi bi-check2-all me-1"></i> Ranked Results
+                            <i class="bi bi-check2-all me-1"></i> Analysis Complete
                         </span>
                         <span class="text-muted small">&bull;</span>
-                        <span class="text-muted small">@Model.RankedResults.Count(r => r.IsSuccess) / @Model.RankedResults.Count Jobs</span>
+                        <span class="text-muted small fw-medium">@Model.RankedResults.Count(r => r.IsSuccess) / @Model.RankedResults.Count Ranked</span>
                         <span class="text-muted small">&bull;</span>
-                        <span class="text-muted small">@Model.ElapsedMilliseconds ms</span>
+                        <span class="text-muted small"><i class="bi bi-stopwatch"></i> @Model.ElapsedMilliseconds ms</span>
+                        <span class="text-muted small">&bull;</span>
+                        <span class="text-muted small"><i class="bi bi-cpu"></i> @(string.IsNullOrEmpty(Model.ActiveModel) ? "AI Match Engine" : Model.ActiveModel)</span>
                     </div>
 
                     <a href="#jobFinderForm" class="btn btn-outline-primary btn-sm rounded-pill px-3">
@@ -197,9 +222,17 @@
                                     <div class="rank-badge mb-1">
                                         @if (rank == 1)
                                         {
-                                            <span class="badge bg-warning text-dark rounded-pill px-2 py-1 fw-bold extra-small">
+                                            <span class="badge bg-warning text-dark rounded-pill px-3 py-1 fw-bold shadow-sm extra-small">
                                                 <i class="bi bi-trophy-fill me-1"></i> #1 Match
                                             </span>
+                                        }
+                                        else if (rank == 2)
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-1 fw-bold extra-small">#2 Match</span>
+                                        }
+                                        else if (rank == 3)
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-1 fw-bold extra-small">#3 Match</span>
                                         }
                                         else
                                         {
@@ -227,7 +260,7 @@
                                 <div class="col-md-10 border-start-md border-secondary border-opacity-25 ps-md-3">
                                     <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 mb-2">
                                         <div>
-                                            <h6 class="fw-bold mb-1 text-primary-emphasis">
+                                            <h6 class="fw-bold mb-1 text-primary-emphasis fs-6">
                                                 @job.Title
                                             </h6>
                                             <div class="d-flex flex-wrap align-items-center gap-2 text-muted extra-small">
@@ -251,7 +284,7 @@
                                         </div>
 
                                         <a href="@job.SourceUrl" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm rounded-pill px-3 extra-small text-nowrap align-self-start">
-                                            View Job <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                            View on Bdjobs <i class="bi bi-box-arrow-up-right ms-1"></i>
                                         </a>
                                     </div>
 
@@ -268,7 +301,7 @@
                                         {
                                             <div class="p-2 px-3 rounded-3 bg-body-tertiary border border-secondary-subtle my-2">
                                                 <p class="m-0 extra-small text-body-secondary line-height-relaxed">
-                                                    <strong class="text-primary me-1"><i class="bi bi-robot"></i> Reasoning:</strong>@job.Reasoning
+                                                    <strong class="text-primary me-1"><i class="bi bi-robot"></i> Match Reasoning:</strong>@job.Reasoning
                                                 </p>
                                             </div>
                                         }
@@ -282,7 +315,7 @@
                                                         <span class="text-success extra-small fw-semibold me-1"><i class="bi bi-check-circle-fill"></i> Matched:</span>
                                                         @foreach (var skill in job.MatchedSkills)
                                                         {
-                                                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0 extra-small">
+                                                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 extra-small">
                                                                 @skill
                                                             </span>
                                                         }
@@ -294,10 +327,10 @@
                                             {
                                                 <div class="col-12">
                                                     <div class="d-flex flex-wrap align-items-center gap-1">
-                                                        <span class="text-danger extra-small fw-semibold me-1"><i class="bi bi-dash-circle-fill"></i> Gaps:</span>
+                                                        <span class="text-danger extra-small fw-semibold me-1"><i class="bi bi-dash-circle-fill"></i> Missing:</span>
                                                         @foreach (var gap in job.Gaps)
                                                         {
-                                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-0 extra-small">
+                                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1 extra-small">
                                                                 @gap
                                                             </span>
                                                         }
