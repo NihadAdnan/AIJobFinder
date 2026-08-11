@@ -2,10 +2,26 @@ using System.Net;
 using FindJob.Services;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Configuration;
 using Polly;
 using Polly.Extensions.Http;
 
+// Prevent inotify file descriptor limit exhaustion in Linux/Docker containers
+Environment.SetEnvironmentVariable("DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE", "false");
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Turn off file change polling/watchers to prevent inotify instance crashes on Render
+builder.Host.ConfigureAppConfiguration((hostingContext, config) =>
+{
+    foreach (var source in config.Sources)
+    {
+        if (source is FileConfigurationSource fileSource)
+        {
+            fileSource.ReloadOnChange = false;
+        }
+    }
+});
 
 // Bind to dynamic PORT environment variable on Render / cloud containers
 var port = Environment.GetEnvironmentVariable("PORT");
