@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="FindJob.Tests/FindJob.Tests.csproj" />
+  <Project Path="FindJob/FindJob.csproj" />
+</Solution>
