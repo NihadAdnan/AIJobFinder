@@ -1,6 +1,6 @@
 @model FindJob.Models.JobFinderResultViewModel
 @{
-    ViewData["Title"] = "AI Job Finder - Match Resume Against Career Opportunities";
+    ViewData["Title"] = "AI Job Finder - Intelligent Career Compatibility Matcher";
 }
 
 <div class="row g-4 justify-content-center">
@@ -12,7 +12,7 @@
         <h1 class="display-6 fw-bold tracking-tight mb-2">
             Match Your Resume Against <span class="text-gradient">Target Career Opportunities</span>
         </h1>
-        <p class="text-muted mx-auto mb-3" style="max-width: 700px;">
+        <p class="text-muted mx-auto mb-3" style="max-width: 720px;">
             Upload your resume and paste up to 5 job URLs from any platform (LinkedIn, Bdjobs, Greenhouse, Lever, Indeed, or career portals) to get an instant ranked compatibility breakdown.
         </p>
 
@@ -90,43 +90,73 @@
                     </div>
                 </div>
 
-                <!-- Right Panel: Job URLs -->
+                <!-- Right Panel: Job Input (URLs or Direct Text) -->
                 <div class="col-md-7">
                     <div class="card glass-card h-100 border-0 shadow-sm p-4 rounded-4 d-flex flex-column">
-                        <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                             <h6 class="fw-bold m-0 d-flex align-items-center gap-2">
-                                <i class="bi bi-link-45deg text-primary fs-4"></i> 2. Job URLs (Up to 5)
+                                <i class="bi bi-briefcase-fill text-primary fs-5"></i> 2. Target Job Postings (Up to 5)
                             </h6>
-                            <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 extra-small" id="btnPasteClipboard" title="Paste from clipboard">
-                                <i class="bi bi-clipboard-plus me-1"></i> Paste Next
-                            </button>
+                            
+                            <!-- Input Mode Tabs -->
+                            <ul class="nav nav-pills nav-fill bg-body-tertiary p-1 rounded-pill extra-small" id="jdInputTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active rounded-pill py-1 px-3 extra-small fw-semibold" id="tab-urls" data-bs-toggle="pill" data-bs-target="#panel-urls" type="button" role="tab">
+                                        <i class="bi bi-link-45deg me-1"></i> URLs
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link rounded-pill py-1 px-3 extra-small fw-semibold" id="tab-text" data-bs-toggle="pill" data-bs-target="#panel-text" type="button" role="tab">
+                                        <i class="bi bi-file-earmark-text me-1"></i> Paste Text
+                                    </button>
+                                </li>
+                            </ul>
                         </div>
 
-                        <!-- 5 URL Input Cards -->
-                        <div class="d-flex flex-column gap-2" id="urlInputContainer">
-                            @for (int i = 0; i < 5; i++)
-                            {
-                                var index = i;
-                                <div class="url-input-row" data-row="@index">
-                                    <div class="input-group">
-                                        <span class="input-group-text bg-body-tertiary text-muted extra-small fw-semibold">
-                                            #@(index + 1)
-                                        </span>
-                                        <input type="text" 
-                                               name="JobUrls[@index]" 
-                                               id="jobUrlInput_@index" 
-                                               class="form-control form-control-sm url-field" 
-                                               placeholder="https://... (LinkedIn, Bdjobs, Greenhouse, Lever, etc.)" 
-                                               autocomplete="off" />
-                                        <span class="input-group-text bg-body-tertiary id-badge-slot d-none" id="idBadge_@index">
-                                            <span class="badge bg-primary-subtle text-primary extra-small"><span class="id-text">Web</span></span>
-                                        </span>
-                                        <button class="btn btn-sm btn-outline-secondary btn-clear-url" type="button" data-target="@index" title="Clear">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
-                                    </div>
+                        <div class="tab-content flex-grow-1" id="jdTabContent">
+                            <!-- Tab 1: URL Inputs -->
+                            <div class="tab-pane fade show active" id="panel-urls" role="tabpanel">
+                                <div class="d-flex justify-content-end mb-2">
+                                    <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 extra-small" id="btnPasteClipboard" title="Paste from clipboard">
+                                        <i class="bi bi-clipboard-plus me-1"></i> Paste Next URL
+                                    </button>
                                 </div>
-                            }
+                                <div class="d-flex flex-column gap-2" id="urlInputContainer">
+                                    @for (int i = 0; i < 5; i++)
+                                    {
+                                        var index = i;
+                                        <div class="url-input-row" data-row="@index">
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-body-tertiary text-muted extra-small fw-semibold">
+                                                    #@(index + 1)
+                                                </span>
+                                                <input type="text" 
+                                                       name="JobUrls[@index]" 
+                                                       id="jobUrlInput_@index" 
+                                                       class="form-control form-control-sm url-field" 
+                                                       placeholder="https://... (LinkedIn, Bdjobs, Greenhouse, Lever, etc.)" 
+                                                       autocomplete="off" />
+                                                <span class="input-group-text bg-body-tertiary id-badge-slot d-none" id="idBadge_@index">
+                                                    <span class="badge bg-primary-subtle text-primary extra-small"><span class="id-text">Web</span></span>
+                                                </span>
+                                                <button class="btn btn-sm btn-outline-secondary btn-clear-url" type="button" data-target="@index" title="Clear">
+                                                    <i class="bi bi-x-lg"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Tab 2: Direct Text Inputs -->
+                            <div class="tab-pane fade" id="panel-text" role="tabpanel">
+                                <div class="mb-2 text-muted extra-small">
+                                    Paste raw job description text below if a career site is login-protected:
+                                </div>
+                                <div class="d-flex flex-column gap-2">
+                                    <textarea name="ManualJdTexts[0]" class="form-control form-control-sm extra-small" rows="6" placeholder="Paste full Job Description text here (Title, Requirements, Responsibilities)..."></textarea>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -158,16 +188,16 @@
                             <i class="bi bi-check-circle-fill text-primary"></i> <span>1. Parsing resume text &amp; chunking qualifications</span>
                         </div>
                         <div class="d-flex align-items-center gap-2 extra-small progress-step" id="step2">
-                            <i class="bi bi-circle text-muted"></i> <span>2. Extracting structured data from job URLs</span>
+                            <i class="bi bi-circle text-muted"></i> <span>2. Extracting structured data from job postings</span>
                         </div>
                         <div class="d-flex align-items-center gap-2 extra-small progress-step" id="step3">
                             <i class="bi bi-circle text-muted"></i> <span>3. Generating in-memory vector embeddings</span>
                         </div>
                         <div class="d-flex align-items-center gap-2 extra-small progress-step" id="step4">
-                            <i class="bi bi-circle text-muted"></i> <span>4. Computing qualification similarity matches</span>
+                            <i class="bi bi-circle text-muted"></i> <span>4. RAG structured profile &amp; skill extraction</span>
                         </div>
                         <div class="d-flex align-items-center gap-2 extra-small progress-step" id="step5">
-                            <i class="bi bi-circle text-muted"></i> <span>5. Scoring, identifying skill gaps &amp; ranking</span>
+                            <i class="bi bi-circle text-muted"></i> <span>5. Deterministic 5D scoring &amp; rationale generation</span>
                         </div>
                     </div>
 
@@ -226,14 +256,14 @@
                     
                     <div class="card glass-card job-result-card border-0 shadow-sm rounded-4 overflow-hidden @(isTopRank ? "border-highlight" : "")">
                         <div class="card-body p-3 p-md-4">
-                            <div class="row g-3 align-items-center">
-                                <!-- Rank & Score Gauge -->
-                                <div class="col-md-2 text-center d-flex flex-column align-items-center justify-content-center">
+                            <div class="row g-3 align-items-start">
+                                <!-- Rank & Score Gauge Column -->
+                                <div class="col-lg-2 col-md-3 text-center d-flex flex-column align-items-center justify-content-center">
                                     <div class="rank-badge mb-1">
                                         @if (rank == 1)
                                         {
                                             <span class="badge bg-warning text-dark rounded-pill px-3 py-1 fw-bold shadow-sm extra-small">
-                                                <i class="bi bi-trophy-fill me-1"></i> #1 Match
+                                                <i class="bi bi-trophy-fill me-1"></i> #1 Top Match
                                             </span>
                                         }
                                         else if (rank == 2)
@@ -266,8 +296,8 @@
                                     }
                                 </div>
 
-                                <!-- Job Info & AI Analysis -->
-                                <div class="col-md-10 border-start-md border-secondary border-opacity-25 ps-md-3">
+                                <!-- Job Info, 5D Breakdown & AI Analysis -->
+                                <div class="col-lg-10 col-md-9 border-start-md border-secondary border-opacity-25 ps-md-3">
                                     <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 mb-2">
                                         <div>
                                             <div class="d-flex align-items-center gap-2 mb-1">
@@ -298,9 +328,12 @@
                                             </div>
                                         </div>
 
-                                        <a href="@job.SourceUrl" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm rounded-pill px-3 extra-small text-nowrap align-self-start">
-                                            View Posting <i class="bi bi-box-arrow-up-right ms-1"></i>
-                                        </a>
+                                        @if (job.SourceUrl != "#")
+                                        {
+                                            <a href="@job.SourceUrl" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm rounded-pill px-3 extra-small text-nowrap align-self-start">
+                                                View Posting <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                            </a>
+                                        }
                                     </div>
 
                                     @if (!job.IsSuccess)
@@ -312,12 +345,84 @@
                                     }
                                     else
                                     {
-                                        <!-- AI Reasoning -->
+                                        <!-- Hard-Cap Notice -->
+                                        @if (job.Breakdown.IsCapped)
+                                        {
+                                            <div class="alert alert-warning py-2 px-3 rounded-3 extra-small mb-2 d-flex align-items-center gap-2" role="alert">
+                                                <i class="bi bi-shield-exclamation text-warning flex-shrink-0 fs-6"></i>
+                                                <span><strong>Mandatory Requirement Cap:</strong> @job.Breakdown.CapReason</span>
+                                            </div>
+                                        }
+
+                                        <!-- 5-Dimensional Score Breakdown Progress Grid -->
+                                        <div class="p-3 rounded-3 bg-body-tertiary border border-secondary-subtle my-2">
+                                            <div class="extra-small fw-bold text-muted mb-2 text-uppercase tracking-wider">
+                                                <i class="bi bi-bar-chart-fill text-primary me-1"></i> Deterministic Score Breakdown
+                                            </div>
+                                            <div class="row g-2">
+                                                <!-- Skills (35%) -->
+                                                <div class="col-sm-6 col-md-4">
+                                                    <div class="d-flex justify-content-between extra-small mb-1">
+                                                        <span><i class="bi bi-tools text-primary me-1"></i> Skills (35%)</span>
+                                                        <span class="fw-bold">@job.Breakdown.SkillScore%</span>
+                                                    </div>
+                                                    <div class="progress rounded-pill" style="height: 5px;">
+                                                        <div class="progress-bar bg-primary" style="width: @job.Breakdown.SkillScore%"></div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Experience (20%) -->
+                                                <div class="col-sm-6 col-md-4">
+                                                    <div class="d-flex justify-content-between extra-small mb-1">
+                                                        <span><i class="bi bi-clock-history text-info me-1"></i> Experience (20%)</span>
+                                                        <span class="fw-bold">@job.Breakdown.ExperienceScore%</span>
+                                                    </div>
+                                                    <div class="progress rounded-pill" style="height: 5px;">
+                                                        <div class="progress-bar bg-info" style="width: @job.Breakdown.ExperienceScore%"></div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Title & Seniority (10%) -->
+                                                <div class="col-sm-6 col-md-4">
+                                                    <div class="d-flex justify-content-between extra-small mb-1">
+                                                        <span><i class="bi bi-person-badge text-warning me-1"></i> Seniority (10%)</span>
+                                                        <span class="fw-bold">@job.Breakdown.TitleScore%</span>
+                                                    </div>
+                                                    <div class="progress rounded-pill" style="height: 5px;">
+                                                        <div class="progress-bar bg-warning" style="width: @job.Breakdown.TitleScore%"></div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Education (10%) -->
+                                                <div class="col-sm-6 col-md-4">
+                                                    <div class="d-flex justify-content-between extra-small mb-1">
+                                                        <span><i class="bi bi-mortarboard text-secondary me-1"></i> Education (10%)</span>
+                                                        <span class="fw-bold">@job.Breakdown.EducationScore%</span>
+                                                    </div>
+                                                    <div class="progress rounded-pill" style="height: 5px;">
+                                                        <div class="progress-bar bg-secondary" style="width: @job.Breakdown.EducationScore%"></div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Semantic Vector (25%) -->
+                                                <div class="col-sm-6 col-md-4">
+                                                    <div class="d-flex justify-content-between extra-small mb-1">
+                                                        <span><i class="bi bi-vector-pen text-success me-1"></i> Semantic RAG (25%)</span>
+                                                        <span class="fw-bold">@job.Breakdown.SemanticScore%</span>
+                                                    </div>
+                                                    <div class="progress rounded-pill" style="height: 5px;">
+                                                        <div class="progress-bar bg-success" style="width: @job.Breakdown.SemanticScore%"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 2-Sentence Recruiter Rationale -->
                                         @if (!string.IsNullOrWhiteSpace(job.Reasoning))
                                         {
                                             <div class="p-2 px-3 rounded-3 bg-body-tertiary border border-secondary-subtle my-2">
                                                 <p class="m-0 extra-small text-body-secondary line-height-relaxed">
-                                                    <strong class="text-primary me-1"><i class="bi bi-robot"></i> Match Reasoning:</strong>@job.Reasoning
+                                                    <strong class="text-primary me-1"><i class="bi bi-robot"></i> Rationale:</strong>@job.Reasoning
                                                 </p>
                                             </div>
                                         }
@@ -339,12 +444,12 @@
                                                 </div>
                                             }
 
-                                            @if (job.Gaps != null && job.Gaps.Any())
+                                            @if (job.MissingRequiredSkills != null && job.MissingRequiredSkills.Any())
                                             {
                                                 <div class="col-12">
                                                     <div class="d-flex flex-wrap align-items-center gap-1">
-                                                        <span class="text-danger extra-small fw-semibold me-1"><i class="bi bi-dash-circle-fill"></i> Missing:</span>
-                                                        @foreach (var gap in job.Gaps)
+                                                        <span class="text-danger extra-small fw-semibold me-1"><i class="bi bi-dash-circle-fill"></i> Missing Required:</span>
+                                                        @foreach (var gap in job.MissingRequiredSkills)
                                                         {
                                                             <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-0 extra-small">
                                                                 @gap

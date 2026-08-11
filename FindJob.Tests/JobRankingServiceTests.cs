@@ -26,9 +26,18 @@ public class JobRankingServiceTests
         var resumeParser = new ResumeParserService();
         var bdjobsService = new BdjobsService(httpClientFactory, configuration, NullLogger<BdjobsService>.Instance);
         var jobExtractor = new JobExtractorService(httpClientFactory, bdjobsService, NullLogger<JobExtractorService>.Instance);
+        var skillDictionary = new SkillDictionaryService();
+        var scoringEngine = new DeterministicScoringService(skillDictionary);
         var ollamaService = new OllamaService(httpClientFactory, configuration, NullLogger<OllamaService>.Instance);
 
-        _rankingService = new JobRankingService(resumeParser, jobExtractor, ollamaService, configuration, NullLogger<JobRankingService>.Instance);
+        _rankingService = new JobRankingService(
+            resumeParser, 
+            jobExtractor, 
+            skillDictionary, 
+            scoringEngine, 
+            ollamaService, 
+            configuration, 
+            NullLogger<JobRankingService>.Instance);
     }
 
     [Fact]
@@ -58,9 +67,11 @@ public class JobRankingServiceTests
                 $"Scores should be sorted descending. Index {i} has score {successfulJobs[i].Score}, index {i+1} has score {successfulJobs[i+1].Score}");
         }
 
-        // Verify that Reasoning does NOT expose internal exception strings or raw connection errors
+        // Verify that Breakdown is populated
         foreach (var job in successfulJobs)
         {
+            Assert.NotNull(job.Breakdown);
+            Assert.True(job.Breakdown.FinalScore >= 0 && job.Breakdown.FinalScore <= 100);
             Assert.False(string.IsNullOrWhiteSpace(job.Reasoning));
             Assert.DoesNotContain("No connection could be made", job.Reasoning, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("actively refused", job.Reasoning, StringComparison.OrdinalIgnoreCase);

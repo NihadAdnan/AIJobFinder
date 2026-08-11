@@ -29,6 +29,8 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<IResumeParserService, ResumeParserService>();
 builder.Services.AddScoped<IBdjobsService, BdjobsService>();
 builder.Services.AddScoped<IJobExtractorService, JobExtractorService>();
+builder.Services.AddScoped<ISkillDictionaryService, SkillDictionaryService>();
+builder.Services.AddScoped<IDeterministicScoringService, DeterministicScoringService>();
 builder.Services.AddScoped<IOllamaService, OllamaService>();
 builder.Services.AddScoped<IJobRankingService, JobRankingService>();
 

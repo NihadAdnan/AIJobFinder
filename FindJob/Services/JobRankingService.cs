@@ -9,6 +9,8 @@ public class JobRankingService : IJobRankingService
 {
     private readonly IResumeParserService _resumeParserService;
     private readonly IJobExtractorService _jobExtractorService;
+    private readonly ISkillDictionaryService _skillDictionaryService;
+    private readonly IDeterministicScoringService _deterministicScoringService;
     private readonly IOllamaService _ollamaService;
     private readonly ILogger<JobRankingService> _logger;
     private readonly string _defaultChatModel;
@@ -18,12 +20,16 @@ public class JobRankingService : IJobRankingService
     public JobRankingService(
         IResumeParserService resumeParserService,
         IJobExtractorService jobExtractorService,
+        ISkillDictionaryService skillDictionaryService,
+        IDeterministicScoringService deterministicScoringService,
         IOllamaService ollamaService,
         IConfiguration configuration,
         ILogger<JobRankingService> logger)
     {
         _resumeParserService = resumeParserService;
         _jobExtractorService = jobExtractorService;
+        _skillDictionaryService = skillDictionaryService;
+        _deterministicScoringService = deterministicScoringService;
         _ollamaService = ollamaService;
         _logger = logger;
         _defaultChatModel = configuration["Ollama:ChatModel"] ?? "llama3.1:8b";
@@ -47,13 +53,13 @@ public class JobRankingService : IJobRankingService
         resultViewModel.OllamaConnected = health.IsConnected;
         if (!health.IsConnected)
         {
-            resultViewModel.ActiveModel = "AI Match Engine (Smart Heuristics)";
-            resultViewModel.ActiveEmbeddingModel = "In-Memory Keyword Matcher";
+            resultViewModel.ActiveModel = "Deterministic AI Match Engine (Smart Heuristics)";
+            resultViewModel.ActiveEmbeddingModel = "In-Memory Semantic Matcher";
         }
 
         // 2. Parse Resume
         ResumeData resumeData;
-        if (request.DemoMode || (request.ResumeFile == null && request.JobUrls.Count > 0))
+        if (request.DemoMode || (request.ResumeFile == null && request.JobUrls.Count > 0 && request.ManualJdTexts.Count == 0))
         {
             resumeData = GetSampleResumeData();
         }
@@ -63,7 +69,7 @@ public class JobRankingService : IJobRankingService
         }
         else
         {
-            resultViewModel.ErrorMessage = "Please upload a valid resume (PDF or DOCX).";
+            resultViewModel.ErrorMessage = "Please upload a valid resume (PDF or DOCX) or try the demo.";
             stopwatch.Stop();
             resultViewModel.ElapsedMilliseconds = stopwatch.ElapsedMilliseconds;
             return resultViewModel;
@@ -78,32 +84,68 @@ public class JobRankingService : IJobRankingService
         }
 
         resultViewModel.ResumeChunkCount = resumeData.Chunks.Count;
-        resultViewModel.CandidateSummary = GenerateCandidateSummary(resumeData);
 
-        // 3. Extract & Fetch Universal Job data (max 5 URLs)
+        // 3. Ingest Target Job Descriptions (from URLs and/or manual text inputs)
+        var fetchedJobs = new List<JobData>();
+
         var validUrls = request.JobUrls.Where(u => !string.IsNullOrWhiteSpace(u)).Take(5).ToList();
-        if (validUrls.Count == 0 && request.DemoMode)
+        if (validUrls.Count == 0 && request.ManualJdTexts.Count == 0 && request.DemoMode)
         {
             validUrls = GetSampleJobUrls();
         }
 
-        if (validUrls.Count == 0)
+        if (validUrls.Count > 0)
         {
-            resultViewModel.ErrorMessage = "Please provide at least one valid job posting URL.";
+            var urlJobs = await _jobExtractorService.ExtractMultipleJobsAsync(validUrls, cancellationToken);
+            fetchedJobs.AddRange(urlJobs);
+        }
+
+        // Handle manual text inputs if any
+        if (request.ManualJdTexts != null && request.ManualJdTexts.Count > 0)
+        {
+            int manualIdx = 1;
+            foreach (var manualText in request.ManualJdTexts.Where(t => !string.IsNullOrWhiteSpace(t)).Take(5 - fetchedJobs.Count))
+            {
+                var clean = manualText.Trim();
+                var firstLine = clean.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault() ?? $"Custom Job #{manualIdx}";
+                
+                fetchedJobs.Add(new JobData
+                {
+                    JobId = $"manual-{manualIdx}",
+                    Title = firstLine.Length > 60 ? firstLine[..60] : firstLine,
+                    Company = "Direct Text Input",
+                    SourceUrl = "#",
+                    SourceDomain = "Direct Text",
+                    Requirements = clean,
+                    Responsibilities = clean,
+                    RawFlattenedText = clean,
+                    IsSuccess = true,
+                    Chunks = new List<TextChunk> { new(clean, "Job Description") }
+                });
+                manualIdx++;
+            }
+        }
+
+        if (fetchedJobs.Count == 0)
+        {
+            resultViewModel.ErrorMessage = "Please provide at least one valid job URL or paste a job description.";
             stopwatch.Stop();
             resultViewModel.ElapsedMilliseconds = stopwatch.ElapsedMilliseconds;
             return resultViewModel;
         }
 
-        var fetchedJobs = await _jobExtractorService.ExtractMultipleJobsAsync(validUrls, cancellationToken);
         resultViewModel.TotalJobsProcessed = fetchedJobs.Count;
 
-        // 4. In-Memory Embeddings (RAG Pipeline)
+        // 4. In-Memory Vector Embeddings (Whole-doc + section embeddings for RAG)
+        float[]? resumeWholeVector = null;
         if (resultViewModel.OllamaConnected)
         {
             try
             {
-                // Embed resume chunks in-memory
+                // Embed resume whole text
+                resumeWholeVector = await _ollamaService.GetEmbeddingAsync(resumeData.RawText, resultViewModel.ActiveEmbeddingModel, targetBaseUrl, cancellationToken);
+
+                // Embed resume chunks
                 for (int i = 0; i < resumeData.Chunks.Count; i++)
                 {
                     if (cancellationToken.IsCancellationRequested) break;
@@ -111,14 +153,14 @@ public class JobRankingService : IJobRankingService
                     chunk.Vector = await _ollamaService.GetEmbeddingAsync(chunk.Text, resultViewModel.ActiveEmbeddingModel, targetBaseUrl, cancellationToken);
                 }
 
-                // Embed job requirement texts in-memory
+                // Embed job texts
                 foreach (var job in fetchedJobs.Where(j => j.IsSuccess))
                 {
                     if (cancellationToken.IsCancellationRequested) break;
-                    var jobSummaryForEmbedding = $"{job.Title} {job.Requirements} {job.Responsibilities}";
-                    if (!string.IsNullOrWhiteSpace(jobSummaryForEmbedding))
+                    var jobSummary = $"{job.Title} {job.Requirements} {job.Responsibilities}";
+                    if (!string.IsNullOrWhiteSpace(jobSummary))
                     {
-                        var jobVec = await _ollamaService.GetEmbeddingAsync(jobSummaryForEmbedding, resultViewModel.ActiveEmbeddingModel, targetBaseUrl, cancellationToken);
+                        var jobVec = await _ollamaService.GetEmbeddingAsync(jobSummary, resultViewModel.ActiveEmbeddingModel, targetBaseUrl, cancellationToken);
                         if (jobVec != null && job.Chunks.Count > 0)
                         {
                             job.Chunks[0].Vector = jobVec;
@@ -128,11 +170,15 @@ public class JobRankingService : IJobRankingService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Embedding step encountered an issue, proceeding with direct section retrieval");
+                _logger.LogWarning(ex, "Vector embedding step encountered an issue, proceeding with semantic keyword extraction.");
             }
         }
 
-        // 5. Score Each Job Independently (bounded concurrency = 2 to protect local hardware)
+        // 5. Extract Structured Profiles (RAG-Grounded)
+        var resumeProfile = await _ollamaService.ExtractResumeProfileAsync(resumeData, resultViewModel.ActiveModel, targetBaseUrl, cancellationToken);
+        resultViewModel.CandidateSummary = $"{resumeProfile.CandidateName} ({resumeProfile.CurrentTitle}, {resumeProfile.TotalYearsExperience} yrs exp, {resumeProfile.Skills.Count} skills extracted)";
+
+        // 6. Deterministic Multi-Dimensional Scoring
         var scoringResults = new List<ScoringResult>();
         using var scoringSemaphore = new SemaphoreSlim(2, 2);
 
@@ -156,52 +202,73 @@ public class JobRankingService : IJobRankingService
             await scoringSemaphore.WaitAsync(cancellationToken);
             try
             {
-                // In-Memory Cosine Similarity Matcher: Pick Top-3 relevant resume chunks
-                List<TextChunk> topRelevantChunks;
-                float topSimilarity = 0f;
+                // A. Extract Structured JD Profile
+                var jdProfile = await _ollamaService.ExtractJdProfileAsync(job, resultViewModel.ActiveModel, targetBaseUrl, cancellationToken);
 
-                var jobVector = job.Chunks.FirstOrDefault(c => c.Vector != null)?.Vector;
-                var chunksWithVectors = resumeData.Chunks.Where(c => c.Vector != null).ToList();
-
-                if (jobVector != null && chunksWithVectors.Count > 0)
+                // B. Compute Semantic Cosine Similarity
+                float semanticCosine = 0f;
+                var jobVec = job.Chunks.FirstOrDefault(c => c.Vector != null)?.Vector;
+                if (resumeWholeVector != null && jobVec != null)
                 {
-                    var similarityRanked = chunksWithVectors
-                        .Select(c => new { Chunk = c, Sim = _ollamaService.ComputeCosineSimilarity(jobVector, c.Vector) })
-                        .OrderByDescending(x => x.Sim)
-                        .ToList();
+                    semanticCosine = _ollamaService.ComputeCosineSimilarity(resumeWholeVector, jobVec);
+                }
 
-                    topSimilarity = similarityRanked.FirstOrDefault()?.Sim ?? 0f;
-                    topRelevantChunks = similarityRanked.Take(3).Select(x => x.Chunk).ToList();
+                // C. Deterministic Scoring Engine
+                var breakdown = _deterministicScoringService.ComputeScore(resumeProfile, jdProfile, semanticCosine);
+
+                // D. Skill Comparison
+                var (matchedReq, missingReq) = _skillDictionaryService.CompareSkills(resumeProfile.Skills, jdProfile.RequiredSkills);
+                var (matchedNice, _) = _skillDictionaryService.CompareSkills(resumeProfile.Skills, jdProfile.NiceToHaveSkills);
+
+                // E. Experience Gap Description
+                string expGap = string.Empty;
+                if (jdProfile.MinYearsExperience > 0)
+                {
+                    if (resumeProfile.TotalYearsExperience >= jdProfile.MinYearsExperience)
+                    {
+                        expGap = $"{resumeProfile.TotalYearsExperience} yrs (meets {jdProfile.MinYearsExperience} yrs required)";
+                    }
+                    else
+                    {
+                        expGap = $"{resumeProfile.TotalYearsExperience} yrs (requires {jdProfile.MinYearsExperience} yrs)";
+                    }
                 }
                 else
                 {
-                    // Fallback to Skills, Experience and Summary sections
-                    topRelevantChunks = resumeData.Chunks
-                        .Where(c => c.Section.Contains("SKILL", StringComparison.OrdinalIgnoreCase) || 
-                                    c.Section.Contains("EXPERIENCE", StringComparison.OrdinalIgnoreCase) ||
-                                    c.Section.Contains("PROJECT", StringComparison.OrdinalIgnoreCase) ||
-                                    c.Section.Contains("SUMMARY", StringComparison.OrdinalIgnoreCase))
-                        .Take(3)
-                        .ToList();
-
-                    if (topRelevantChunks.Count == 0)
-                    {
-                        topRelevantChunks = resumeData.Chunks.Take(3).ToList();
-                    }
+                    expGap = $"{resumeProfile.TotalYearsExperience} yrs experience";
                 }
 
-                // Prompt LLM for structured scoring
-                var scoreRes = await _ollamaService.ScoreJobMatchAsync(
-                    job, 
-                    resumeData, 
-                    topRelevantChunks, 
-                    topSimilarity, 
+                // F. Generate 2-Sentence Recruiter Rationale
+                var rationale = await _ollamaService.GenerateMatchRationaleAsync(
+                    resumeProfile, 
+                    jdProfile, 
+                    breakdown, 
+                    matchedReq, 
+                    missingReq, 
                     resultViewModel.ActiveModel, 
                     targetBaseUrl, 
                     cancellationToken);
 
-                scoreRes.SourceDomain = job.SourceDomain;
-                return scoreRes;
+                return new ScoringResult
+                {
+                    JobId = job.JobId,
+                    Title = string.IsNullOrWhiteSpace(jdProfile.JobTitle) ? job.Title : jdProfile.JobTitle,
+                    Company = string.IsNullOrWhiteSpace(job.Company) ? job.SourceDomain : job.Company,
+                    Location = job.Location,
+                    Experience = string.IsNullOrWhiteSpace(job.Experience) ? $"{jdProfile.MinYearsExperience} yrs" : job.Experience,
+                    Salary = job.Salary,
+                    SourceUrl = job.SourceUrl,
+                    SourceDomain = job.SourceDomain,
+                    Score = breakdown.FinalScore,
+                    Breakdown = breakdown,
+                    MatchedSkills = matchedReq.Concat(matchedNice).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                    MissingRequiredSkills = missingReq,
+                    NiceToHaveMatched = matchedNice,
+                    ExperienceGapText = expGap,
+                    Reasoning = rationale,
+                    TopCosineSimilarity = semanticCosine,
+                    IsSuccess = true
+                };
             }
             finally
             {
@@ -211,7 +278,7 @@ public class JobRankingService : IJobRankingService
 
         var completedScores = await Task.WhenAll(scoringTasks);
 
-        // 6. Server-Side Ranking: Sort highest to lowest score
+        // 7. Server-Side Ranking: Sort highest to lowest score
         resultViewModel.RankedResults = completedScores
             .OrderByDescending(r => r.IsSuccess)
             .ThenByDescending(r => r.Score)
@@ -221,15 +288,6 @@ public class JobRankingService : IJobRankingService
         resultViewModel.ElapsedMilliseconds = stopwatch.ElapsedMilliseconds;
 
         return resultViewModel;
-    }
-
-    private static string GenerateCandidateSummary(ResumeData resume)
-    {
-        if (!string.IsNullOrWhiteSpace(resume.CandidateName))
-        {
-            return $"Candidate: {resume.CandidateName} ({resume.Chunks.Count} extracted section blocks)";
-        }
-        return $"Resume successfully parsed into {resume.Chunks.Count} section chunks.";
     }
 
     private static ResumeData GetSampleResumeData()
@@ -243,8 +301,8 @@ Results-driven Senior Full Stack Software Engineer with 5+ years of hands-on exp
 
 TECHNICAL SKILLS
 - Languages: C#, JavaScript, TypeScript, SQL, Python
-- Backend: ASP.NET Core 8/10, Web API, Minimal APIs, EF Core, Dapper, MediatR, SignalR, RabbitMQ
-- Frontend: Angular 16+, React, Bootstrap 5, Tailwind CSS, HTML5, CSS3/SCSS
+- Backend: ASP.NET Core, C#, Web API, Minimal APIs, EF Core, Dapper, MediatR, SignalR, RabbitMQ
+- Frontend: Angular, React, TypeScript, JavaScript, Bootstrap 5, Tailwind CSS, HTML5, CSS3
 - Databases: MS SQL Server, PostgreSQL, Redis, MongoDB
 - Cloud & DevOps: Docker, Kubernetes, Azure App Services, GitHub Actions, CI/CD
 - AI & LLM: Ollama, Semantic Kernel, LangChain, Embeddings, Vector Search, Cosine Similarity
@@ -276,7 +334,7 @@ PROJECTS
         var chunks = new List<TextChunk>
         {
             new("RAHIM AHMED - Senior Full Stack Software Engineer with 5+ years experience in ASP.NET Core, C#, SQL Server, Angular, and React.", "SUMMARY"),
-            new("Technical Skills: C#, ASP.NET Core 8/10, EF Core, SQL Server, PostgreSQL, Redis, Docker, Kubernetes, Angular, React, Ollama, Vector Search.", "SKILLS"),
+            new("Technical Skills: C#, ASP.NET Core, EF Core, SQL Server, PostgreSQL, Redis, Docker, Kubernetes, Angular, React, Ollama, Vector Search, Python.", "SKILLS"),
             new("Senior Software Engineer at TechSolutions Ltd (2022-Present): Architected high-performance ASP.NET Core microservices, integrated local Ollama LLM RAG pipelines.", "EXPERIENCE"),
             new("Software Engineer at BrainStation 23 (2020-2022): Developed fintech web portals with C#, ASP.NET Core MVC, and Angular.", "EXPERIENCE"),
             new("Education: B.Sc. in CSE from BUET (2015-2019), CGPA: 3.82/4.00.", "EDUCATION")
@@ -295,9 +353,11 @@ PROJECTS
     {
         return new List<string>
         {
+            "https://bdjobs.com/h/details/1519924?ln=1",
+            "https://boards.greenhouse.io/anthropic/jobs/4252608007",
+            "https://jobs.lever.co/openai/senior-software-engineer",
             "https://jobs.bdjobs.com/jobdetails.asp?id=1358920",
-            "https://jobs.bdjobs.com/jobdetails.asp?id=1359401",
-            "https://jobs.bdjobs.com/jobdetails.asp?id=1357642"
+            "https://www.linkedin.com/jobs/view/4012345678"
         };
     }
 }

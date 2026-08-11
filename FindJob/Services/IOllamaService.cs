@@ -12,12 +12,25 @@ public interface IOllamaService
     
     float ComputeCosineSimilarity(float[]? vecA, float[]? vecB);
     
-    Task<ScoringResult> ScoreJobMatchAsync(
-        JobData job, 
+    Task<ExtractedResumeProfile> ExtractResumeProfileAsync(
         ResumeData resume, 
-        List<TextChunk> relevantChunks, 
-        float topSimilarityScore,
-        string? chatModel = null, 
+        string? model = null, 
+        string? baseUrl = null, 
+        CancellationToken cancellationToken = default);
+
+    Task<ExtractedJdProfile> ExtractJdProfileAsync(
+        JobData job, 
+        string? model = null, 
+        string? baseUrl = null, 
+        CancellationToken cancellationToken = default);
+
+    Task<string> GenerateMatchRationaleAsync(
+        ExtractedResumeProfile resume, 
+        ExtractedJdProfile jd, 
+        ScoreBreakdown breakdown,
+        List<string> matchedSkills,
+        List<string> missingSkills,
+        string? model = null, 
         string? baseUrl = null, 
         CancellationToken cancellationToken = default);
 }
