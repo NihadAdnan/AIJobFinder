@@ -289,26 +289,40 @@ function initUrlInputs() {
         const idText = badgeSlot?.querySelector('.id-text');
 
         const val = input.value.trim();
-        const jobId = extractJobId(val);
+        if (!val) {
+            if (badgeSlot) badgeSlot.classList.add('d-none');
+            return;
+        }
 
-        if (jobId && badgeSlot && idText) {
-            idText.textContent = jobId;
+        const domain = detectDomain(val);
+        if (badgeSlot && idText) {
+            idText.textContent = domain;
             badgeSlot.classList.remove('d-none');
-        } else if (badgeSlot) {
-            badgeSlot.classList.add('d-none');
         }
     }
 
-    function extractJobId(url) {
-        if (!url) return null;
-        const trimmed = url.trim();
-        if (/^\d{4,10}$/.test(trimmed)) return trimmed;
-        const queryMatch = trimmed.match(/(?:[?&](?:job)?id=)(\d+)/i);
-        if (queryMatch) return queryMatch[1];
-        const pathMatch = trimmed.match(/(?:\/(?:[a-zA-Z0-9_-]+\/)?(?:details|jobs|jobdetails)\/)(\d+)/i);
-        if (pathMatch) return pathMatch[1];
-        const anyMatch = trimmed.match(/\b(\d{5,10})\b/);
-        return anyMatch ? anyMatch[1] : null;
+    function detectDomain(url) {
+        if (!url) return 'Web';
+        const trimmed = url.trim().toLowerCase();
+        if (/^\d{4,10}$/.test(trimmed)) return 'Bdjobs';
+        if (trimmed.includes('bdjobs.com')) return 'Bdjobs';
+        if (trimmed.includes('linkedin.com')) return 'LinkedIn';
+        if (trimmed.includes('greenhouse.io')) return 'Greenhouse';
+        if (trimmed.includes('lever.co')) return 'Lever';
+        if (trimmed.includes('indeed.com')) return 'Indeed';
+        if (trimmed.includes('ashbyhq.com')) return 'Ashby';
+        if (trimmed.includes('workable.com')) return 'Workable';
+        if (trimmed.includes('glassdoor.com')) return 'Glassdoor';
+        if (trimmed.includes('wellfound.com') || trimmed.includes('angel.co')) return 'Wellfound';
+
+        try {
+            const uri = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+            const host = uri.hostname.replace('www.', '').replace('jobs.', '').replace('careers.', '');
+            const part = host.split('.')[0];
+            return part ? part.charAt(0).toUpperCase() + part.slice(1) : 'Web';
+        } catch {
+            return 'Web';
+        }
     }
 }
 

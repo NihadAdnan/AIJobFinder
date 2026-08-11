@@ -10,6 +10,7 @@ public class ScoringResult
     public string Title { get; set; } = string.Empty;
     public string Company { get; set; } = string.Empty;
     public string SourceUrl { get; set; } = string.Empty;
+    public string SourceDomain { get; set; } = "Web";
     public int Score { get; set; } // 0 - 100
     public List<string> MatchedSkills { get; set; } = new();
     public List<string> Gaps { get; set; } = new();

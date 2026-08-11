@@ -6,6 +6,7 @@ public class JobData
 {
     public string JobId { get; set; } = string.Empty;
     public string SourceUrl { get; set; } = string.Empty;
+    public string SourceDomain { get; set; } = "Web";
     public string Title { get; set; } = string.Empty;
     public string Company { get; set; } = string.Empty;
     public string Location { get; set; } = string.Empty;
@@ -52,73 +53,4 @@ public class JobData
 
         return string.Join("\n\n", parts);
     }
-}
-
-/// <summary>
-/// Common fields observed in Bdjobs JSON responses.
-/// </summary>
-public class BdjobsApiResponse
-{
-    [JsonPropertyName("jobId")]
-    public object? JobId { get; set; }
-
-    [JsonPropertyName("jobTitle")]
-    public string? JobTitle { get; set; }
-
-    [JsonPropertyName("companyName")]
-    public string? CompanyName { get; set; }
-
-    [JsonPropertyName("companyAddress")]
-    public string? CompanyAddress { get; set; }
-
-    [JsonPropertyName("jobLoc")]
-    public string? JobLoc { get; set; }
-
-    [JsonPropertyName("jobNature")]
-    public string? JobNature { get; set; }
-
-    [JsonPropertyName("workplace")]
-    public string? Workplace { get; set; }
-
-    [JsonPropertyName("jobContext")]
-    public string? JobContext { get; set; }
-
-    [JsonPropertyName("jobResp")]
-    public string? JobResp { get; set; }
-
-    [JsonPropertyName("eduReq")]
-    public string? EduReq { get; set; }
-
-    [JsonPropertyName("expReq")]
-    public string? ExpReq { get; set; }
-
-    [JsonPropertyName("minExp")]
-    public object? MinExp { get; set; }
-
-    [JsonPropertyName("maxExp")]
-    public object? MaxExp { get; set; }
-
-    [JsonPropertyName("addReq")]
-    public string? AddReq { get; set; }
-
-    [JsonPropertyName("skills")]
-    public string? Skills { get; set; }
-
-    [JsonPropertyName("salary")]
-    public string? Salary { get; set; }
-
-    [JsonPropertyName("minSalary")]
-    public object? MinSalary { get; set; }
-
-    [JsonPropertyName("maxSalary")]
-    public object? MaxSalary { get; set; }
-
-    [JsonPropertyName("otherBenifits")]
-    public string? OtherBenefits { get; set; }
-
-    [JsonPropertyName("deadline")]
-    public string? Deadline { get; set; }
-
-    [JsonPropertyName("publishDate")]
-    public string? PublishDate { get; set; }
 }

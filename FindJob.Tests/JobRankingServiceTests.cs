@@ -25,9 +25,10 @@ public class JobRankingServiceTests
 
         var resumeParser = new ResumeParserService();
         var bdjobsService = new BdjobsService(httpClientFactory, configuration, NullLogger<BdjobsService>.Instance);
+        var jobExtractor = new JobExtractorService(httpClientFactory, bdjobsService, NullLogger<JobExtractorService>.Instance);
         var ollamaService = new OllamaService(httpClientFactory, configuration, NullLogger<OllamaService>.Instance);
 
-        _rankingService = new JobRankingService(resumeParser, bdjobsService, ollamaService, configuration, NullLogger<JobRankingService>.Instance);
+        _rankingService = new JobRankingService(resumeParser, jobExtractor, ollamaService, configuration, NullLogger<JobRankingService>.Instance);
     }
 
     [Fact]

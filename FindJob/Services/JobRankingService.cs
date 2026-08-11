@@ -8,7 +8,7 @@ namespace FindJob.Services;
 public class JobRankingService : IJobRankingService
 {
     private readonly IResumeParserService _resumeParserService;
-    private readonly IBdjobsService _bdjobsService;
+    private readonly IJobExtractorService _jobExtractorService;
     private readonly IOllamaService _ollamaService;
     private readonly ILogger<JobRankingService> _logger;
     private readonly string _defaultChatModel;
@@ -17,13 +17,13 @@ public class JobRankingService : IJobRankingService
 
     public JobRankingService(
         IResumeParserService resumeParserService,
-        IBdjobsService bdjobsService,
+        IJobExtractorService jobExtractorService,
         IOllamaService ollamaService,
         IConfiguration configuration,
         ILogger<JobRankingService> logger)
     {
         _resumeParserService = resumeParserService;
-        _bdjobsService = bdjobsService;
+        _jobExtractorService = jobExtractorService;
         _ollamaService = ollamaService;
         _logger = logger;
         _defaultChatModel = configuration["Ollama:ChatModel"] ?? "llama3.1:8b";
@@ -80,7 +80,7 @@ public class JobRankingService : IJobRankingService
         resultViewModel.ResumeChunkCount = resumeData.Chunks.Count;
         resultViewModel.CandidateSummary = GenerateCandidateSummary(resumeData);
 
-        // 3. Extract & Fetch Bdjobs data (max 5 URLs)
+        // 3. Extract & Fetch Universal Job data (max 5 URLs)
         var validUrls = request.JobUrls.Where(u => !string.IsNullOrWhiteSpace(u)).Take(5).ToList();
         if (validUrls.Count == 0 && request.DemoMode)
         {
@@ -89,13 +89,13 @@ public class JobRankingService : IJobRankingService
 
         if (validUrls.Count == 0)
         {
-            resultViewModel.ErrorMessage = "Please provide at least one valid Bdjobs posting URL.";
+            resultViewModel.ErrorMessage = "Please provide at least one valid job posting URL.";
             stopwatch.Stop();
             resultViewModel.ElapsedMilliseconds = stopwatch.ElapsedMilliseconds;
             return resultViewModel;
         }
 
-        var fetchedJobs = await _bdjobsService.FetchMultipleJobsAsync(validUrls, cancellationToken);
+        var fetchedJobs = await _jobExtractorService.ExtractMultipleJobsAsync(validUrls, cancellationToken);
         resultViewModel.TotalJobsProcessed = fetchedJobs.Count;
 
         // 4. In-Memory Embeddings (RAG Pipeline)
@@ -143,12 +143,13 @@ public class JobRankingService : IJobRankingService
                 return new ScoringResult
                 {
                     JobId = job.JobId,
-                    Title = "Unavailable Posting",
-                    Company = "Bdjobs",
+                    Title = string.IsNullOrWhiteSpace(job.Title) ? "Unavailable Posting" : job.Title,
+                    Company = string.IsNullOrWhiteSpace(job.Company) ? job.SourceDomain : job.Company,
                     SourceUrl = job.SourceUrl,
+                    SourceDomain = job.SourceDomain,
                     Score = 0,
                     IsSuccess = false,
-                    ErrorMessage = job.ErrorMessage ?? "Job listing could not be retrieved from Bdjobs."
+                    ErrorMessage = job.ErrorMessage ?? "Job listing could not be retrieved."
                 };
             }
 
@@ -190,7 +191,7 @@ public class JobRankingService : IJobRankingService
                 }
 
                 // Prompt LLM for structured scoring
-                return await _ollamaService.ScoreJobMatchAsync(
+                var scoreRes = await _ollamaService.ScoreJobMatchAsync(
                     job, 
                     resumeData, 
                     topRelevantChunks, 
@@ -198,6 +199,9 @@ public class JobRankingService : IJobRankingService
                     resultViewModel.ActiveModel, 
                     targetBaseUrl, 
                     cancellationToken);
+
+                scoreRes.SourceDomain = job.SourceDomain;
+                return scoreRes;
             }
             finally
             {
@@ -269,7 +273,6 @@ PROJECTS
 - AI Job Matcher: Built an in-memory RAG system evaluating job descriptions against candidate profiles using ASP.NET Core and Ollama.
 - Enterprise E-Commerce Platform: Scalable microservices ecosystem with RabbitMQ, Redis, and PostgreSQL.";
 
-        var lines = sampleText.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var chunks = new List<TextChunk>
         {
             new("RAHIM AHMED - Senior Full Stack Software Engineer with 5+ years experience in ASP.NET Core, C#, SQL Server, Angular, and React.", "SUMMARY"),

@@ -67,12 +67,12 @@ public class HomeController : Controller
             urls = new[]
             {
                 "https://bdjobs.com/h/details/1519924?ln=1",
+                "https://boards.greenhouse.io/anthropic/jobs/4252608007",
+                "https://jobs.lever.co/openai/senior-software-engineer",
                 "https://jobs.bdjobs.com/jobdetails.asp?id=1358920",
-                "https://jobs.bdjobs.com/jobdetails.asp?id=1359401",
-                "https://bdjobs.com/h/details/1519924",
-                "https://jobs.bdjobs.com/jobdetails.asp?id=1357642"
+                "https://www.linkedin.com/jobs/view/full-stack-engineer-4012345678"
             },
-            candidateName = "Rahim Ahmed (Senior .NET & AI Software Engineer)"
+            candidateName = "Rahim Ahmed (.NET & AI Software Engineer)"
         });
     }
 

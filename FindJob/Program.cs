@@ -1,3 +1,4 @@
+using System.Net;
 using FindJob.Services;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -27,6 +28,7 @@ builder.Services.AddControllersWithViews();
 // Register application domain services
 builder.Services.AddScoped<IResumeParserService, ResumeParserService>();
 builder.Services.AddScoped<IBdjobsService, BdjobsService>();
+builder.Services.AddScoped<IJobExtractorService, JobExtractorService>();
 builder.Services.AddScoped<IOllamaService, OllamaService>();
 builder.Services.AddScoped<IJobRankingService, JobRankingService>();
 
@@ -39,6 +41,20 @@ builder.Services.AddHttpClient("BdjobsClient", client =>
 .AddPolicyHandler(HttpPolicyExtensions
     .HandleTransientHttpError()
     .WaitAndRetryAsync(2, retryAttempt => TimeSpan.FromMilliseconds(400 * Math.Pow(2, retryAttempt))));
+
+builder.Services.AddHttpClient("UniversalWebClient", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(20);
+})
+.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    AutomaticDecompression = DecompressionMethods.All,
+    AllowAutoRedirect = true,
+    MaxAutomaticRedirections = 5
+})
+.AddPolicyHandler(HttpPolicyExtensions
+    .HandleTransientHttpError()
+    .WaitAndRetryAsync(2, retryAttempt => TimeSpan.FromMilliseconds(500 * Math.Pow(2, retryAttempt))));
 
 builder.Services.AddHttpClient("OllamaClient", client =>
 {

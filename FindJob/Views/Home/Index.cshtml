@@ -1,19 +1,19 @@
 @model FindJob.Models.JobFinderResultViewModel
 @{
-    ViewData["Title"] = "AI Job Finder - Match Resume Against Bdjobs";
+    ViewData["Title"] = "AI Job Finder - Match Resume Against Any Job Posting";
 }
 
 <div class="row g-4 justify-content-center">
     <!-- Hero Header -->
     <div class="col-12 text-center my-2">
         <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-primary bg-opacity-10 border border-primary border-opacity-25 text-primary mb-2 small fw-semibold">
-            <i class="bi bi-stars"></i> AI-Powered Job Matching
+            <i class="bi bi-stars"></i> Universal AI Job Matcher
         </div>
         <h1 class="display-6 fw-bold tracking-tight mb-2">
-            Match Your Resume Against <span class="text-gradient">Bdjobs Postings</span>
+            Match Your Resume Against <span class="text-gradient">Any Job Posting</span>
         </h1>
-        <p class="text-muted mx-auto mb-3" style="max-width: 620px;">
-            Upload your resume and paste up to 5 Bdjobs URLs to get an instant ranked match breakdown.
+        <p class="text-muted mx-auto mb-3" style="max-width: 650px;">
+            Upload your resume and paste up to 5 job URLs from any platform (LinkedIn, Greenhouse, Lever, Indeed, or career pages) to get an instant ranked breakdown.
         </p>
 
         <div class="d-flex justify-content-center gap-2">
@@ -49,6 +49,7 @@
             <input type="hidden" name="CustomModel" id="hiddenModel" value="" />
             <input type="hidden" name="CustomEmbeddingModel" id="hiddenEmbeddingModel" value="" />
 
+            <!-- Two Side-by-Side Panels -->
             <div class="row g-4">
                 <!-- Left Panel: Resume Upload -->
                 <div class="col-md-5">
@@ -89,12 +90,12 @@
                     </div>
                 </div>
 
-                <!-- Right Panel: Bdjobs URLs -->
+                <!-- Right Panel: Job URLs -->
                 <div class="col-md-7">
                     <div class="card glass-card h-100 border-0 shadow-sm p-4 rounded-4 d-flex flex-column">
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <h6 class="fw-bold m-0 d-flex align-items-center gap-2">
-                                <i class="bi bi-link-45deg text-primary fs-4"></i> 2. Bdjobs URLs (Up to 5)
+                                <i class="bi bi-link-45deg text-primary fs-4"></i> 2. Job URLs (Up to 5)
                             </h6>
                             <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 extra-small" id="btnPasteClipboard" title="Paste from clipboard">
                                 <i class="bi bi-clipboard-plus me-1"></i> Paste Next
@@ -115,10 +116,10 @@
                                                name="JobUrls[@index]" 
                                                id="jobUrlInput_@index" 
                                                class="form-control form-control-sm url-field" 
-                                               placeholder="https://bdjobs.com/h/details/..." 
+                                               placeholder="https://... (any job posting URL)" 
                                                autocomplete="off" />
                                         <span class="input-group-text bg-body-tertiary id-badge-slot d-none" id="idBadge_@index">
-                                            <span class="badge bg-success-subtle text-success extra-small">ID: <span class="id-text"></span></span>
+                                            <span class="badge bg-primary-subtle text-primary extra-small"><span class="id-text">Web</span></span>
                                         </span>
                                         <button class="btn btn-sm btn-outline-secondary btn-clear-url" type="button" data-target="@index" title="Clear">
                                             <i class="bi bi-x-lg"></i>
@@ -127,14 +128,14 @@
                                 </div>
                             }
                         </div>
-
-                        <!-- Submit Button -->
-                        <div class="mt-auto pt-3">
-                            <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-primary text-uppercase tracking-wider d-flex align-items-center justify-content-center gap-2" id="btnSubmitAnalysis">
-                                <i class="bi bi-lightning-charge-fill"></i> Analyze &amp; Rank Matches
-                            </button>
-                        </div>
                     </div>
+                </div>
+
+                <!-- Full-Width Action Button Below the Two Sections -->
+                <div class="col-12 mt-3">
+                    <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-primary text-uppercase tracking-wider d-flex align-items-center justify-content-center gap-2 fs-6" id="btnSubmitAnalysis">
+                        <i class="bi bi-lightning-charge-fill fs-5"></i> Analyze &amp; Rank Job Matches
+                    </button>
                 </div>
             </div>
         </form>
@@ -157,7 +158,7 @@
                             <i class="bi bi-check-circle-fill text-primary"></i> <span>1. Parsing resume text &amp; chunking qualifications</span>
                         </div>
                         <div class="d-flex align-items-center gap-2 extra-small progress-step" id="step2">
-                            <i class="bi bi-circle text-muted"></i> <span>2. Fetching Bdjobs postings from gateway</span>
+                            <i class="bi bi-circle text-muted"></i> <span>2. Extracting structured data from job URLs</span>
                         </div>
                         <div class="d-flex align-items-center gap-2 extra-small progress-step" id="step3">
                             <i class="bi bi-circle text-muted"></i> <span>3. Generating in-memory vector embeddings</span>
@@ -260,11 +261,16 @@
                                 <div class="col-md-10 border-start-md border-secondary border-opacity-25 ps-md-3">
                                     <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 mb-2">
                                         <div>
-                                            <h6 class="fw-bold mb-1 text-primary-emphasis fs-6">
-                                                @job.Title
-                                            </h6>
+                                            <div class="d-flex align-items-center gap-2 mb-1">
+                                                <h6 class="fw-bold m-0 text-primary-emphasis fs-6">
+                                                    @job.Title
+                                                </h6>
+                                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill extra-small">
+                                                    @job.SourceDomain
+                                                </span>
+                                            </div>
                                             <div class="d-flex flex-wrap align-items-center gap-2 text-muted extra-small">
-                                                <span class="fw-semibold text-body"><i class="bi bi-building"></i> @(string.IsNullOrEmpty(job.Company) ? "Bdjobs Employer" : job.Company)</span>
+                                                <span class="fw-semibold text-body"><i class="bi bi-building"></i> @(string.IsNullOrEmpty(job.Company) ? job.SourceDomain : job.Company)</span>
                                                 @if (!string.IsNullOrEmpty(job.Location))
                                                 {
                                                     <span>&bull;</span>
@@ -284,7 +290,7 @@
                                         </div>
 
                                         <a href="@job.SourceUrl" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm rounded-pill px-3 extra-small text-nowrap align-self-start">
-                                            View on Bdjobs <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                            View Job <i class="bi bi-box-arrow-up-right ms-1"></i>
                                         </a>
                                     </div>
 
@@ -315,7 +321,7 @@
                                                         <span class="text-success extra-small fw-semibold me-1"><i class="bi bi-check-circle-fill"></i> Matched:</span>
                                                         @foreach (var skill in job.MatchedSkills)
                                                         {
-                                                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 extra-small">
+                                                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0 extra-small">
                                                                 @skill
                                                             </span>
                                                         }
@@ -330,7 +336,7 @@
                                                         <span class="text-danger extra-small fw-semibold me-1"><i class="bi bi-dash-circle-fill"></i> Missing:</span>
                                                         @foreach (var gap in job.Gaps)
                                                         {
-                                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1 extra-small">
+                                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-0 extra-small">
                                                                 @gap
                                                             </span>
                                                         }
