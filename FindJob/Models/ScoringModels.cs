@@ -68,6 +68,13 @@ public class JobFinderRequestViewModel
     public List<string> JobUrls { get; set; } = new();
     public List<string> ManualJdTexts { get; set; } = new();
 
+    // User-confirmed / edited profile overrides from popup
+    public string? OverriddenCandidateName { get; set; }
+    public string? OverriddenTitle { get; set; }
+    public double? OverriddenYearsExperience { get; set; }
+    public string? OverriddenDegree { get; set; }
+    public string? OverriddenSkills { get; set; } // Comma-separated or JSON list
+
     public string? CustomModel { get; set; }
     public string? CustomEmbeddingModel { get; set; }
     public string? CustomBaseUrl { get; set; }

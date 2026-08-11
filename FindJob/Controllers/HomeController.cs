@@ -8,15 +8,18 @@ namespace FindJob.Controllers;
 public class HomeController : Controller
 {
     private readonly IJobRankingService _jobRankingService;
+    private readonly IResumeParserService _resumeParserService;
     private readonly IOllamaService _ollamaService;
     private readonly ILogger<HomeController> _logger;
 
     public HomeController(
         IJobRankingService jobRankingService,
+        IResumeParserService resumeParserService,
         IOllamaService ollamaService,
         ILogger<HomeController> logger)
     {
         _jobRankingService = jobRankingService;
+        _resumeParserService = resumeParserService;
         _ollamaService = ollamaService;
         _logger = logger;
     }
@@ -50,6 +53,44 @@ public class HomeController : Controller
 
         // Otherwise return view
         return View("Index", result);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> ParseResumePreview(IFormFile? resumeFile, [FromForm] string? customBaseUrl, [FromForm] string? customModel, CancellationToken cancellationToken)
+    {
+        if (resumeFile == null || resumeFile.Length == 0)
+        {
+            return Json(new { success = false, errorMessage = "No resume file was provided." });
+        }
+
+        try
+        {
+            var resumeData = await _resumeParserService.ParseResumeAsync(resumeFile, cancellationToken);
+            if (!resumeData.IsSuccess)
+            {
+                return Json(new { success = false, errorMessage = resumeData.ErrorMessage ?? "Failed to parse resume." });
+            }
+
+            var profile = await _ollamaService.ExtractResumeProfileAsync(resumeData, customModel, customBaseUrl, cancellationToken);
+
+            return Json(new
+            {
+                success = true,
+                candidateName = profile.CandidateName,
+                currentTitle = profile.CurrentTitle,
+                totalYearsExperience = profile.TotalYearsExperience,
+                degree = profile.Degree,
+                skills = profile.Skills,
+                skillsString = string.Join(", ", profile.Skills)
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to extract resume preview");
+            return Json(new { success = false, errorMessage = "Could not parse resume profile." });
+        }
     }
 
     [HttpGet]

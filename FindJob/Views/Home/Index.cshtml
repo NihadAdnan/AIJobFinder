@@ -49,6 +49,13 @@
             <input type="hidden" name="CustomModel" id="hiddenModel" value="" />
             <input type="hidden" name="CustomEmbeddingModel" id="hiddenEmbeddingModel" value="" />
 
+            <!-- User-confirmed profile overrides -->
+            <input type="hidden" name="OverriddenCandidateName" id="hiddenCandidateName" value="" />
+            <input type="hidden" name="OverriddenTitle" id="hiddenCandidateTitle" value="" />
+            <input type="hidden" name="OverriddenYearsExperience" id="hiddenYearsExperience" value="" />
+            <input type="hidden" name="OverriddenDegree" id="hiddenDegree" value="" />
+            <input type="hidden" name="OverriddenSkills" id="hiddenSkills" value="" />
+
             <!-- Two Side-by-Side Panels -->
             <div class="row g-4">
                 <!-- Left Panel: Resume Upload -->
@@ -74,7 +81,7 @@
 
                         <!-- Selected File Preview Card -->
                         <div class="file-preview-card mt-3 p-3 rounded-3 bg-body-tertiary border border-secondary-subtle d-none" id="filePreviewCard">
-                            <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
                                 <div class="d-flex align-items-center gap-2 overflow-hidden">
                                     <i class="bi bi-file-earmark-text-fill text-primary fs-4" id="filePreviewIcon"></i>
                                     <div class="text-truncate">
@@ -86,16 +93,24 @@
                                     <i class="bi bi-x fs-5"></i>
                                 </button>
                             </div>
+
+                            <!-- Profile Summary Snippet & Edit Button -->
+                            <div class="pt-2 border-top border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+                                <span class="extra-small text-muted" id="previewProfileSnippet">Profile parsed</span>
+                                <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0 extra-small" id="btnEditExtractedProfile">
+                                    <i class="bi bi-pencil me-1"></i> Edit Profile
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Right Panel: Job Input (URLs or Direct Text) -->
+                <!-- Right Panel: Job Inputs & Analyze Button -->
                 <div class="col-md-7">
                     <div class="card glass-card h-100 border-0 shadow-sm p-4 rounded-4 d-flex flex-column">
                         <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                             <h6 class="fw-bold m-0 d-flex align-items-center gap-2">
-                                <i class="bi bi-briefcase-fill text-primary fs-5"></i> 2. Target Job Postings (Up to 5)
+                                <i class="bi bi-briefcase-fill text-primary fs-5"></i> 2. Add Job Postings (Up to 5)
                             </h6>
                             
                             <!-- Input Mode Tabs -->
@@ -158,17 +173,77 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <!-- Full-Width Action Button Below the Two Sections -->
-                <div class="col-12 mt-3">
-                    <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-primary text-uppercase tracking-wider d-flex align-items-center justify-content-center gap-2 fs-6" id="btnSubmitAnalysis">
-                        <i class="bi bi-lightning-charge-fill fs-5"></i> Analyze &amp; Rank Job Matches
-                    </button>
+                        <!-- Action Submit Button inside Panel #2 -->
+                        <div class="mt-4 pt-2">
+                            <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-primary text-uppercase tracking-wider d-flex align-items-center justify-content-center gap-2 fs-6" id="btnSubmitAnalysis">
+                                <i class="bi bi-lightning-charge-fill fs-5"></i> Analyze &amp; Rank Job Matches
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </form>
+    </div>
+
+    <!-- Candidate Extracted Profile Review / Edit Modal -->
+    <div class="modal fade" id="resumeProfileModal" tabindex="-1" aria-labelledby="resumeProfileModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content glass-card border-0 shadow-lg">
+                <div class="modal-header border-bottom border-secondary border-opacity-25 pb-3">
+                    <h5 class="modal-title d-flex align-items-center gap-2" id="resumeProfileModalLabel">
+                        <i class="bi bi-person-check-fill text-primary"></i> Confirm Extracted Resume Details
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <p class="text-muted extra-small mb-3">
+                        We've parsed your resume in memory. You can review and edit these fields to ensure the scoring engine has your most accurate profile information:
+                    </p>
+
+                    <div class="row g-3">
+                        <!-- Full Name -->
+                        <div class="col-md-6">
+                            <label for="modalCandidateName" class="form-label extra-small fw-semibold">Candidate Name</label>
+                            <input type="text" class="form-control form-control-sm" id="modalCandidateName" placeholder="e.g. Rahim Ahmed" />
+                        </div>
+
+                        <!-- Current Title -->
+                        <div class="col-md-6">
+                            <label for="modalCurrentTitle" class="form-label extra-small fw-semibold">Current / Desired Title</label>
+                            <input type="text" class="form-control form-control-sm" id="modalCurrentTitle" placeholder="e.g. Senior Software Engineer" />
+                        </div>
+
+                        <!-- Years of Experience -->
+                        <div class="col-md-6">
+                            <label for="modalYearsExperience" class="form-label extra-small fw-semibold">Total Years of Experience</label>
+                            <input type="number" step="0.5" min="0" class="form-control form-control-sm" id="modalYearsExperience" placeholder="e.g. 5" />
+                        </div>
+
+                        <!-- Highest Degree -->
+                        <div class="col-md-6">
+                            <label for="modalDegree" class="form-label extra-small fw-semibold">Highest Degree</label>
+                            <input type="text" class="form-control form-control-sm" id="modalDegree" placeholder="e.g. B.Sc. in Computer Science" />
+                        </div>
+
+                        <!-- Skills -->
+                        <div class="col-12">
+                            <label for="modalSkills" class="form-label extra-small fw-semibold">Core Technical Skills (Comma-separated)</label>
+                            <textarea class="form-control form-control-sm extra-small" id="modalSkills" rows="3" placeholder="e.g. C#, ASP.NET Core, SQL Server, React, Docker, Kubernetes, Python"></textarea>
+                            <div class="form-text extra-small">Add, edit, or remove any skills to refine matching accuracy.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary border-opacity-25 pt-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">
+                        Use Original Resume
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-4" id="btnSaveProfileModal">
+                        <i class="bi bi-check2 me-1"></i> Save &amp; Continue
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Processing Progress Overlay Modal with 5 animated stages -->

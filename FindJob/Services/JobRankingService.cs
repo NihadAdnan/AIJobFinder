@@ -176,6 +176,27 @@ public class JobRankingService : IJobRankingService
 
         // 5. Extract Structured Profiles (RAG-Grounded)
         var resumeProfile = await _ollamaService.ExtractResumeProfileAsync(resumeData, resultViewModel.ActiveModel, targetBaseUrl, cancellationToken);
+        
+        // Apply user-confirmed / edited profile overrides from popup if present
+        if (!string.IsNullOrWhiteSpace(request.OverriddenCandidateName))
+            resumeProfile.CandidateName = request.OverriddenCandidateName.Trim();
+        if (!string.IsNullOrWhiteSpace(request.OverriddenTitle))
+            resumeProfile.CurrentTitle = request.OverriddenTitle.Trim();
+        if (request.OverriddenYearsExperience.HasValue && request.OverriddenYearsExperience.Value >= 0)
+            resumeProfile.TotalYearsExperience = request.OverriddenYearsExperience.Value;
+        if (!string.IsNullOrWhiteSpace(request.OverriddenDegree))
+            resumeProfile.Degree = request.OverriddenDegree.Trim();
+        if (!string.IsNullOrWhiteSpace(request.OverriddenSkills))
+        {
+            var userSkills = request.OverriddenSkills
+                .Split(new[] { ',', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+            if (userSkills.Count > 0)
+            {
+                resumeProfile.Skills = userSkills;
+            }
+        }
+
         resultViewModel.CandidateSummary = $"{resumeProfile.CandidateName} ({resumeProfile.CurrentTitle}, {resumeProfile.TotalYearsExperience} yrs exp, {resumeProfile.Skills.Count} skills extracted)";
 
         // 6. Deterministic Multi-Dimensional Scoring

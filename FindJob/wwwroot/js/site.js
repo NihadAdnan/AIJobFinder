@@ -1,125 +1,142 @@
-// AI Job Finder Client Interaction Script
+// Modern Client Interaction for Universal AI Job Finder
 document.addEventListener('DOMContentLoaded', () => {
-    initThemeToggle();
+    initTheme();
     initOllamaStatus();
+    initSettingsModal();
     initDropzone();
     initUrlInputs();
     initDemoAndClear();
     initFormSubmission();
+    initResumeProfileModal();
 });
 
-// --- Theme Switcher ---
-function initThemeToggle() {
-    const themeToggleBtn = document.getElementById('themeToggleBtn');
+// --- Theme Toggling ---
+function initTheme() {
+    const themeBtn = document.getElementById('themeToggleBtn');
     const themeIcon = document.getElementById('themeIcon');
-    const htmlEl = document.documentElement;
+    const html = document.documentElement;
 
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    htmlEl.setAttribute('data-bs-theme', savedTheme);
+    const savedTheme = localStorage.getItem('ai_job_theme') || 'dark';
+    html.setAttribute('data-bs-theme', savedTheme);
     updateThemeIcon(savedTheme);
 
-    themeToggleBtn?.addEventListener('click', () => {
-        const currentTheme = htmlEl.getAttribute('data-bs-theme');
+    themeBtn?.addEventListener('click', () => {
+        const currentTheme = html.getAttribute('data-bs-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        htmlEl.setAttribute('data-bs-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
+        html.setAttribute('data-bs-theme', newTheme);
+        localStorage.setItem('ai_job_theme', newTheme);
         updateThemeIcon(newTheme);
     });
 
     function updateThemeIcon(theme) {
         if (!themeIcon) return;
         if (theme === 'dark') {
-            themeIcon.className = 'bi bi-moon-stars-fill text-warning';
+            themeIcon.className = 'bi bi-moon-stars-fill';
         } else {
-            themeIcon.className = 'bi bi-sun-fill text-warning';
+            themeIcon.className = 'bi bi-sun-fill';
         }
     }
 }
 
-// --- Ollama Health Check & Settings ---
+// --- Ollama Health Check & Real-Time Status ---
 function initOllamaStatus() {
-    const statusDot = document.getElementById('ollamaStatusDot');
-    const statusText = document.getElementById('ollamaStatusText');
-    const btnTest = document.getElementById('btnTestOllama');
-    const btnSave = document.getElementById('btnSaveSettings');
-    const feedback = document.getElementById('ollamaTestFeedback');
+    const dot = document.getElementById('ollamaStatusDot');
+    const text = document.getElementById('ollamaStatusText');
 
-    const inputBaseUrl = document.getElementById('settingsBaseUrl');
-    const inputChatModel = document.getElementById('settingsChatModel');
-    const inputEmbeddingModel = document.getElementById('settingsEmbeddingModel');
-
-    // Load stored settings or defaults
-    const storedUrl = localStorage.getItem('ollama_url') || 'http://localhost:11434';
-    const storedChatModel = localStorage.getItem('ollama_chat_model') || 'llama3.1:8b';
-    const storedEmbeddingModel = localStorage.getItem('ollama_embedding_model') || 'nomic-embed-text';
-
-    if (inputBaseUrl) inputBaseUrl.value = storedUrl;
-    if (inputChatModel) inputChatModel.value = storedChatModel;
-    if (inputEmbeddingModel) inputEmbeddingModel.value = storedEmbeddingModel;
-
-    syncHiddenInputs();
-
-    // Check status
-    checkStatus(storedUrl);
-
-    btnTest?.addEventListener('click', () => {
-        const url = inputBaseUrl?.value || 'http://localhost:11434';
-        if (feedback) feedback.textContent = 'Testing connection...';
-        checkStatus(url, true);
-    });
-
-    btnSave?.addEventListener('click', () => {
-        if (inputBaseUrl) localStorage.setItem('ollama_url', inputBaseUrl.value.trim());
-        if (inputChatModel) localStorage.setItem('ollama_chat_model', inputChatModel.value.trim());
-        if (inputEmbeddingModel) localStorage.setItem('ollama_embedding_model', inputEmbeddingModel.value.trim());
-        syncHiddenInputs();
-        checkStatus(inputBaseUrl?.value || storedUrl);
-    });
-
-    function syncHiddenInputs() {
-        const hBase = document.getElementById('hiddenBaseUrl');
-        const hModel = document.getElementById('hiddenModel');
-        const hEmb = document.getElementById('hiddenEmbeddingModel');
-
-        if (hBase) hBase.value = localStorage.getItem('ollama_url') || '';
-        if (hModel) hModel.value = localStorage.getItem('ollama_chat_model') || '';
-        if (hEmb) hEmb.value = localStorage.getItem('ollama_embedding_model') || '';
-    }
-
-    async function checkStatus(url, isManualTest = false) {
+    async function checkStatus() {
+        const customBaseUrl = localStorage.getItem('ai_job_ollama_url') || 'http://localhost:11434';
         try {
-            if (statusDot) statusDot.className = 'status-dot status-dot-checking';
-            if (statusText) statusText.textContent = 'Checking...';
-
-            const resp = await fetch(`/Home/CheckOllamaStatus?baseUrl=${encodeURIComponent(url)}`);
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const resp = await fetch(`/Home/CheckOllamaStatus?baseUrl=${encodeURIComponent(customBaseUrl)}`);
             const data = await resp.json();
 
             if (data.isConnected) {
-                if (statusDot) statusDot.className = 'status-dot status-dot-connected';
-                const modelCount = data.availableModels ? data.availableModels.length : 0;
-                if (statusText) statusText.textContent = `Ollama Online (${modelCount} models)`;
-                if (feedback && isManualTest) {
-                    feedback.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> Connected! Found models: ${data.availableModels.join(', ')}</span>`;
+                if (dot) dot.className = 'status-dot status-dot-connected';
+                if (text) text.textContent = 'Ollama Connected';
+            } else {
+                if (dot) dot.className = 'status-dot status-dot-disconnected';
+                if (text) text.textContent = 'Ollama Offline';
+            }
+        } catch {
+            if (dot) dot.className = 'status-dot status-dot-disconnected';
+            if (text) text.textContent = 'Ollama Offline';
+        }
+    }
+
+    checkStatus();
+    setInterval(checkStatus, 30000);
+}
+
+// --- Settings Modal & LocalStorage Persistence ---
+function initSettingsModal() {
+    const inputUrl = document.getElementById('settingsBaseUrl');
+    const inputChat = document.getElementById('settingsChatModel');
+    const inputEmbed = document.getElementById('settingsEmbeddingModel');
+    const btnSave = document.getElementById('btnSaveSettings');
+    const btnTest = document.getElementById('btnTestOllama');
+    const testFeedback = document.getElementById('ollamaTestFeedback');
+
+    const hiddenBaseUrl = document.getElementById('hiddenBaseUrl');
+    const hiddenModel = document.getElementById('hiddenModel');
+    const hiddenEmbeddingModel = document.getElementById('hiddenEmbeddingModel');
+
+    const savedUrl = localStorage.getItem('ai_job_ollama_url') || 'http://localhost:11434';
+    const savedChat = localStorage.getItem('ai_job_ollama_chat') || 'llama3.1:8b';
+    const savedEmbed = localStorage.getItem('ai_job_ollama_embed') || 'nomic-embed-text';
+
+    if (inputUrl) inputUrl.value = savedUrl;
+    if (inputChat) inputChat.value = savedChat;
+    if (inputEmbed) inputEmbed.value = savedEmbed;
+
+    if (hiddenBaseUrl) hiddenBaseUrl.value = savedUrl;
+    if (hiddenModel) hiddenModel.value = savedChat;
+    if (hiddenEmbeddingModel) hiddenEmbeddingModel.value = savedEmbed;
+
+    btnSave?.addEventListener('click', () => {
+        const url = inputUrl?.value.trim() || 'http://localhost:11434';
+        const chat = inputChat?.value.trim() || 'llama3.1:8b';
+        const embed = inputEmbed?.value.trim() || 'nomic-embed-text';
+
+        localStorage.setItem('ai_job_ollama_url', url);
+        localStorage.setItem('ai_job_ollama_chat', chat);
+        localStorage.setItem('ai_job_ollama_embed', embed);
+
+        if (hiddenBaseUrl) hiddenBaseUrl.value = url;
+        if (hiddenModel) hiddenModel.value = chat;
+        if (hiddenEmbeddingModel) hiddenEmbeddingModel.value = embed;
+    });
+
+    btnTest?.addEventListener('click', async () => {
+        const url = inputUrl?.value.trim() || 'http://localhost:11434';
+        if (testFeedback) {
+            testFeedback.textContent = 'Testing connection...';
+            testFeedback.className = 'form-text text-warning';
+        }
+
+        try {
+            const resp = await fetch(`/Home/CheckOllamaStatus?baseUrl=${encodeURIComponent(url)}`);
+            const data = await resp.json();
+
+            if (data.isConnected) {
+                if (testFeedback) {
+                    testFeedback.textContent = `Connected! ${data.availableModels.length} models found.`;
+                    testFeedback.className = 'form-text text-success';
                 }
             } else {
-                if (statusDot) statusDot.className = 'status-dot status-dot-disconnected';
-                if (statusText) statusText.textContent = 'Ollama Offline';
-                if (feedback && isManualTest) {
-                    feedback.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle-fill"></i> ${data.errorMessage || 'Cannot connect to Ollama'}</span>`;
+                if (testFeedback) {
+                    testFeedback.textContent = 'Connection failed. Ensure Ollama is running.';
+                    testFeedback.className = 'form-text text-danger';
                 }
             }
         } catch (err) {
-            if (statusDot) statusDot.className = 'status-dot status-dot-disconnected';
-            if (statusText) statusText.textContent = 'Ollama Offline';
-            if (feedback && isManualTest) {
-                feedback.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle-fill"></i> Connection failed (${err.message})</span>`;
+            if (testFeedback) {
+                testFeedback.textContent = `Error: ${err.message}`;
+                testFeedback.className = 'form-text text-danger';
             }
         }
-    }
+    });
 }
 
-// --- Resume Dropzone & File Handling ---
+// --- Resume Drag-and-Drop & Interactive Preview ---
 function initDropzone() {
     const dropzone = document.getElementById('dropzone');
     const fileInput = document.getElementById('resumeFileInput');
@@ -127,11 +144,12 @@ function initDropzone() {
     const previewCard = document.getElementById('filePreviewCard');
     const previewName = document.getElementById('filePreviewName');
     const previewSize = document.getElementById('filePreviewSize');
+    const previewSnippet = document.getElementById('previewProfileSnippet');
     const btnRemove = document.getElementById('btnRemoveFile');
 
     if (!dropzone || !fileInput) return;
 
-    // Prevent default drag & drop behaviors across the entire window so dropping never opens the file in browser
+    // Prevent default drag & drop behaviors across the window
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         window.addEventListener(eventName, (e) => {
             e.preventDefault();
@@ -175,8 +193,6 @@ function initDropzone() {
         const dt = e.dataTransfer;
         if (dt && dt.files && dt.files.length > 0) {
             const droppedFile = dt.files[0];
-            
-            // Assign dropped file to the HTML input element via DataTransfer API
             try {
                 const dataTransfer = new DataTransfer();
                 dataTransfer.items.add(droppedFile);
@@ -184,7 +200,6 @@ function initDropzone() {
             } catch (err) {
                 console.warn('DataTransfer assignment fallback:', err);
             }
-
             handleFile(droppedFile);
         }
     }, false);
@@ -200,11 +215,10 @@ function initDropzone() {
         fileInput.value = '';
         if (previewCard) previewCard.classList.add('d-none');
         if (dropzone) dropzone.classList.remove('d-none');
-        const hiddenDemo = document.getElementById('hiddenDemoMode');
-        if (hiddenDemo) hiddenDemo.value = 'false';
+        clearOverriddenFields();
     });
 
-    function handleFile(file) {
+    async function handleFile(file) {
         const maxBytes = 5 * 1024 * 1024;
         const validExtensions = ['.pdf', '.docx', '.txt'];
         const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
@@ -223,11 +237,61 @@ function initDropzone() {
 
         if (previewName) previewName.textContent = file.name;
         if (previewSize) previewSize.textContent = formatBytes(file.size);
+        if (previewSnippet) previewSnippet.textContent = 'Extracting candidate details...';
         if (previewCard) previewCard.classList.remove('d-none');
         if (dropzone) dropzone.classList.add('d-none');
 
         const hiddenDemo = document.getElementById('hiddenDemoMode');
         if (hiddenDemo) hiddenDemo.value = 'false';
+
+        // Trigger AJAX Resume Preview Extraction
+        try {
+            const formData = new FormData();
+            formData.append('resumeFile', file);
+            
+            const tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+            if (tokenEl) formData.append('__RequestVerificationToken', tokenEl.value);
+
+            const customBaseUrl = localStorage.getItem('ai_job_ollama_url') || 'http://localhost:11434';
+            const customModel = localStorage.getItem('ai_job_ollama_chat') || 'llama3.1:8b';
+            formData.append('customBaseUrl', customBaseUrl);
+            formData.append('customModel', customModel);
+
+            const resp = await fetch('/Home/ParseResumePreview', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await resp.json();
+            if (data.success) {
+                // Populate Modal Inputs
+                setModalField('modalCandidateName', data.candidateName || '');
+                setModalField('modalCurrentTitle', data.currentTitle || '');
+                setModalField('modalYearsExperience', data.totalYearsExperience || 0);
+                setModalField('modalDegree', data.degree || '');
+                setModalField('modalSkills', data.skillsString || (data.skills ? data.skills.join(', ') : ''));
+
+                // Save to hidden fields as defaults
+                saveModalFieldsToHidden();
+
+                if (previewSnippet) {
+                    previewSnippet.textContent = `${data.candidateName || 'Candidate'} (${data.totalYearsExperience || 0} yrs exp, ${data.skills ? data.skills.length : 0} skills)`;
+                }
+
+                // Show the Review & Edit Popup
+                const modalEl = document.getElementById('resumeProfileModal');
+                if (modalEl) {
+                    // @ts-ignore
+                    const bsModal = new bootstrap.Modal(modalEl);
+                    bsModal.show();
+                }
+            } else {
+                if (previewSnippet) previewSnippet.textContent = 'Profile parsed into RAM.';
+            }
+        } catch (err) {
+            console.warn('Resume preview extraction error:', err);
+            if (previewSnippet) previewSnippet.textContent = 'Profile ready for comparison.';
+        }
     }
 
     function formatBytes(bytes) {
@@ -237,7 +301,69 @@ function initDropzone() {
     }
 }
 
-// --- Bdjobs URL Inputs & Dynamic ID Detection ---
+// --- Resume Profile Review & Edit Modal Handler ---
+function initResumeProfileModal() {
+    const btnSave = document.getElementById('btnSaveProfileModal');
+    const btnEdit = document.getElementById('btnEditExtractedProfile');
+    const modalEl = document.getElementById('resumeProfileModal');
+
+    btnSave?.addEventListener('click', () => {
+        saveModalFieldsToHidden();
+        
+        // Update snippet in preview card
+        const name = document.getElementById('modalCandidateName')?.value || 'Candidate';
+        const yrs = document.getElementById('modalYearsExperience')?.value || '0';
+        const skillsText = document.getElementById('modalSkills')?.value || '';
+        const skillCount = skillsText.split(',').filter(s => s.trim().length > 0).length;
+
+        const snippet = document.getElementById('previewProfileSnippet');
+        if (snippet) snippet.textContent = `${name} (${yrs} yrs exp, ${skillCount} skills)`;
+
+        if (modalEl) {
+            // @ts-ignore
+            const bsModal = bootstrap.Modal.getInstance(modalEl);
+            bsModal?.hide();
+        }
+    });
+
+    btnEdit?.addEventListener('click', () => {
+        if (modalEl) {
+            // @ts-ignore
+            const bsModal = new bootstrap.Modal(modalEl);
+            bsModal.show();
+        }
+    });
+}
+
+function setModalField(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+}
+
+function saveModalFieldsToHidden() {
+    setHiddenField('hiddenCandidateName', document.getElementById('modalCandidateName')?.value);
+    setHiddenField('hiddenCandidateTitle', document.getElementById('modalCurrentTitle')?.value);
+    setHiddenField('hiddenYearsExperience', document.getElementById('modalYearsExperience')?.value);
+    setHiddenField('hiddenDegree', document.getElementById('modalDegree')?.value);
+    setHiddenField('hiddenSkills', document.getElementById('modalSkills')?.value);
+}
+
+function setHiddenField(id, val) {
+    const el = document.getElementById(id);
+    if (el && val !== undefined) el.value = val;
+}
+
+function clearOverriddenFields() {
+    setHiddenField('hiddenCandidateName', '');
+    setHiddenField('hiddenCandidateTitle', '');
+    setHiddenField('hiddenYearsExperience', '');
+    setHiddenField('hiddenDegree', '');
+    setHiddenField('hiddenSkills', '');
+    const hiddenDemo = document.getElementById('hiddenDemoMode');
+    if (hiddenDemo) hiddenDemo.value = 'false';
+}
+
+// --- Universal URL Inputs & Dynamic Domain Badges ---
 function initUrlInputs() {
     const container = document.getElementById('urlInputContainer');
     const btnPaste = document.getElementById('btnPasteClipboard');
@@ -268,13 +394,12 @@ function initUrlInputs() {
             const text = await navigator.clipboard.readText();
             if (!text) return;
 
-            // Find first empty field
             const emptyInput = Array.from(container.querySelectorAll('.url-field')).find(i => !i.value.trim());
             if (emptyInput) {
                 emptyInput.value = text.trim();
                 updateIdBadge(emptyInput);
             } else {
-                alert('All 5 URL slots are already filled. Clear one to paste a new URL.');
+                alert('All 5 URL slots are filled. Clear one to paste a new URL.');
             }
         } catch (err) {
             console.warn('Clipboard read failed:', err);
@@ -351,14 +476,24 @@ function initDemoAndClear() {
             const previewCard = document.getElementById('filePreviewCard');
             const previewName = document.getElementById('filePreviewName');
             const previewSize = document.getElementById('filePreviewSize');
+            const previewSnippet = document.getElementById('previewProfileSnippet');
             const dropzone = document.getElementById('dropzone');
             const hiddenDemo = document.getElementById('hiddenDemoMode');
 
             if (previewName) previewName.textContent = data.candidateName || 'Rahim Ahmed (Senior .NET & AI Engineer)';
             if (previewSize) previewSize.textContent = 'Demo Preloaded Profile';
+            if (previewSnippet) previewSnippet.textContent = 'Rahim Ahmed (5 yrs exp, 12 skills)';
             if (previewCard) previewCard.classList.remove('d-none');
             if (dropzone) dropzone.classList.add('d-none');
             if (hiddenDemo) hiddenDemo.value = 'true';
+
+            // Populate modal inputs with sample candidate
+            setModalField('modalCandidateName', 'Rahim Ahmed');
+            setModalField('modalCurrentTitle', 'Senior Full Stack Software Engineer');
+            setModalField('modalYearsExperience', 5);
+            setModalField('modalDegree', 'B.Sc. in Computer Science & Engineering (BUET)');
+            setModalField('modalSkills', 'C#, ASP.NET Core, SQL Server, PostgreSQL, Redis, Docker, Kubernetes, Angular, React, Ollama, RAG, Python');
+            saveModalFieldsToHidden();
 
         } catch (err) {
             console.error('Failed to load demo presets:', err);
@@ -370,6 +505,7 @@ function initDemoAndClear() {
             i.value = '';
             i.dispatchEvent(new Event('input'));
         });
+        document.querySelectorAll('textarea[name^="ManualJdTexts"]').forEach(t => t.value = '');
         const btnRemove = document.getElementById('btnRemoveFile');
         btnRemove?.click();
     });
@@ -399,9 +535,13 @@ function initFormSubmission() {
             .map(i => i.value.trim())
             .filter(u => u.length > 0);
 
-        if (urls.length === 0) {
+        const manualTexts = Array.from(document.querySelectorAll('textarea[name^="ManualJdTexts"]'))
+            .map(t => t.value.trim())
+            .filter(t => t.length > 0);
+
+        if (urls.length === 0 && manualTexts.length === 0 && !isDemo) {
             e.preventDefault();
-            alert('Please enter at least one Bdjobs posting URL or Job ID.');
+            alert('Please enter at least one job URL or paste a job description.');
             return;
         }
 
@@ -414,11 +554,11 @@ function initFormSubmission() {
 
     function startProgressSimulation() {
         const steps = [
-            { id: 'step1', pct: 20, text: 'Parsing resume text & chunking sections...' },
-            { id: 'step2', pct: 45, text: 'Fetching Bdjobs postings from internal gateway...' },
-            { id: 'step3', pct: 65, text: 'Generating vector embeddings with Ollama...' },
-            { id: 'step4', pct: 85, text: 'In-memory cosine similarity qualification search...' },
-            { id: 'step5', pct: 95, text: 'Structured LLM scoring & ranking results...' }
+            { id: 'step1', pct: 20, text: 'Parsing resume text & chunking qualifications...' },
+            { id: 'step2', pct: 40, text: 'Extracting structured data from job postings...' },
+            { id: 'step3', pct: 60, text: 'Generating in-memory vector embeddings...' },
+            { id: 'step4', pct: 80, text: 'RAG structured profile & skill extraction...' },
+            { id: 'step5', pct: 95, text: 'Deterministic 5D scoring & rationale generation...' }
         ];
 
         const bar = document.getElementById('progressBar');
@@ -438,16 +578,17 @@ function initFormSubmission() {
                 if (bar) bar.style.width = `${s.pct}%`;
                 if (title) title.textContent = s.text;
 
-                // Update step indicators
                 steps.forEach((step, idx) => {
                     const el = document.getElementById(step.id);
                     if (!el) return;
                     if (idx < currentStep) {
-                        el.className = 'd-flex align-items-center gap-2 small progress-step step-completed';
-                        el.querySelector('i').className = 'bi bi-check-circle-fill text-success';
+                        el.className = 'd-flex align-items-center gap-2 extra-small progress-step step-completed';
+                        const icon = el.querySelector('i');
+                        if (icon) icon.className = 'bi bi-check-circle-fill text-success';
                     } else if (idx === currentStep) {
-                        el.className = 'd-flex align-items-center gap-2 small progress-step step-active';
-                        el.querySelector('i').className = 'bi bi-arrow-repeat text-primary spin';
+                        el.className = 'd-flex align-items-center gap-2 extra-small progress-step step-active';
+                        const icon = el.querySelector('i');
+                        if (icon) icon.className = 'bi bi-arrow-repeat text-primary spin';
                     }
                 });
 
