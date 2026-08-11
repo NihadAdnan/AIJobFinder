@@ -1,5 +1,6 @@
 using FindJob.Services;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpOverrides;
 using Polly;
 using Polly.Extensions.Http;
 
@@ -11,6 +12,14 @@ if (!string.IsNullOrEmpty(port))
 {
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
+
+// Configure Forwarded Headers for reverse proxies like Render
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // Add MVC services
 builder.Services.AddControllersWithViews();
@@ -39,7 +48,7 @@ builder.Services.AddHttpClient("OllamaClient", client =>
 
 builder.Services.AddHttpClient("OllamaHealthClient", client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(4);
+    client.Timeout = TimeSpan.FromSeconds(3);
 });
 
 // Configure upload limits
@@ -50,14 +59,19 @@ builder.Services.Configure<FormOptions>(options =>
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
+else
+{
+    app.UseHttpsRedirection();
+}
 
-app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 
