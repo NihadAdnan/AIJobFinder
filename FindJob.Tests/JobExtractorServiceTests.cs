@@ -25,9 +25,9 @@ public class JobExtractorServiceTests
 
     [Theory]
     [InlineData("https://bdjobs.com/h/details/1519924?ln=1", "Bdjobs")]
-    [InlineData("https://www.linkedin.com/jobs/view/123456", "LinkedIn")]
-    [InlineData("https://boards.greenhouse.io/openai/jobs/987654", "Greenhouse")]
-    [InlineData("https://jobs.lever.co/anthropic/54321", "Lever")]
+    [InlineData("https://www.linkedin.com/jobs/view/4012345678", "LinkedIn")]
+    [InlineData("https://boards.greenhouse.io/anthropic/jobs/4252608007", "Greenhouse")]
+    [InlineData("https://jobs.lever.co/openai/54321", "Lever")]
     [InlineData("https://indeed.com/viewjob?jk=abcdef", "Indeed")]
     [InlineData("https://jobs.ashbyhq.com/scale/112233", "Ashby")]
     [InlineData("https://apply.workable.com/tech-corp/j/9988", "Workable")]
@@ -51,6 +51,18 @@ public class JobExtractorServiceTests
         Assert.Equal("Bdjobs", result.SourceDomain);
         Assert.False(string.IsNullOrWhiteSpace(result.Title));
         Assert.True(result.Chunks.Count > 0);
+    }
+
+    [Fact]
+    public async Task ExtractJobAsync_ExternalUrlWithNumericId_DoesNotRouteToBdjobs()
+    {
+        var url = "https://boards.greenhouse.io/openai/jobs/4445898958";
+        var result = await _extractorService.ExtractJobAsync(url);
+
+        Assert.NotNull(result);
+        // SourceDomain must be Greenhouse, never Bdjobs!
+        Assert.Equal("Greenhouse", result.SourceDomain);
+        Assert.DoesNotContain("Bdjobs gateway", result.ErrorMessage ?? "", StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

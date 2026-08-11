@@ -1,19 +1,19 @@
 @model FindJob.Models.JobFinderResultViewModel
 @{
-    ViewData["Title"] = "AI Job Finder - Match Resume Against Any Job Posting";
+    ViewData["Title"] = "AI Job Finder - Match Resume Against Career Opportunities";
 }
 
 <div class="row g-4 justify-content-center">
     <!-- Hero Header -->
     <div class="col-12 text-center my-2">
         <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-primary bg-opacity-10 border border-primary border-opacity-25 text-primary mb-2 small fw-semibold">
-            <i class="bi bi-stars"></i> Universal AI Job Matcher
+            <i class="bi bi-stars"></i> Intelligent Career Compatibility Engine
         </div>
         <h1 class="display-6 fw-bold tracking-tight mb-2">
-            Match Your Resume Against <span class="text-gradient">Any Job Posting</span>
+            Match Your Resume Against <span class="text-gradient">Target Career Opportunities</span>
         </h1>
-        <p class="text-muted mx-auto mb-3" style="max-width: 650px;">
-            Upload your resume and paste up to 5 job URLs from any platform (LinkedIn, Greenhouse, Lever, Indeed, or career pages) to get an instant ranked breakdown.
+        <p class="text-muted mx-auto mb-3" style="max-width: 700px;">
+            Upload your resume and paste up to 5 job URLs from any platform (LinkedIn, Bdjobs, Greenhouse, Lever, Indeed, or career portals) to get an instant ranked compatibility breakdown.
         </p>
 
         <div class="d-flex justify-content-center gap-2">
@@ -116,7 +116,7 @@
                                                name="JobUrls[@index]" 
                                                id="jobUrlInput_@index" 
                                                class="form-control form-control-sm url-field" 
-                                               placeholder="https://... (any job posting URL)" 
+                                               placeholder="https://... (LinkedIn, Bdjobs, Greenhouse, Lever, etc.)" 
                                                autocomplete="off" />
                                         <span class="input-group-text bg-body-tertiary id-badge-slot d-none" id="idBadge_@index">
                                             <span class="badge bg-primary-subtle text-primary extra-small"><span class="id-text">Web</span></span>
@@ -194,7 +194,7 @@
                             <i class="bi bi-check2-all me-1"></i> Analysis Complete
                         </span>
                         <span class="text-muted small">&bull;</span>
-                        <span class="text-muted small fw-medium">@Model.RankedResults.Count(r => r.IsSuccess) / @Model.RankedResults.Count Ranked</span>
+                        <span class="text-muted small fw-medium">@Model.RankedResults.Count(r => r.IsSuccess) / @Model.RankedResults.Count Opportunities Evaluated</span>
                         <span class="text-muted small">&bull;</span>
                         <span class="text-muted small"><i class="bi bi-stopwatch"></i> @Model.ElapsedMilliseconds ms</span>
                         <span class="text-muted small">&bull;</span>
@@ -214,6 +214,15 @@
                 {
                     var isTopRank = rank == 1;
                     var scoreClass = job.Score >= 80 ? "score-high" : (job.Score >= 50 ? "score-med" : "score-low");
+                    var domainBadgeClass = job.SourceDomain switch
+                    {
+                        "LinkedIn" => "bg-primary-subtle text-primary border-primary-subtle",
+                        "Greenhouse" => "bg-success-subtle text-success border-success-subtle",
+                        "Lever" => "bg-info-subtle text-info border-info-subtle",
+                        "Bdjobs" => "bg-warning-subtle text-warning-emphasis border-warning-subtle",
+                        "Indeed" => "bg-primary-subtle text-primary border-primary-subtle",
+                        _ => "bg-secondary-subtle text-secondary border-secondary-subtle"
+                    };
                     
                     <div class="card glass-card job-result-card border-0 shadow-sm rounded-4 overflow-hidden @(isTopRank ? "border-highlight" : "")">
                         <div class="card-body p-3 p-md-4">
@@ -252,7 +261,7 @@
                                     {
                                         <div class="text-danger my-2">
                                             <i class="bi bi-exclamation-circle fs-3"></i>
-                                            <div class="extra-small fw-semibold">Failed</div>
+                                            <div class="extra-small fw-semibold">Unavailable</div>
                                         </div>
                                     }
                                 </div>
@@ -265,7 +274,7 @@
                                                 <h6 class="fw-bold m-0 text-primary-emphasis fs-6">
                                                     @job.Title
                                                 </h6>
-                                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill extra-small">
+                                                <span class="badge @domainBadgeClass border rounded-pill extra-small">
                                                     @job.SourceDomain
                                                 </span>
                                             </div>
@@ -290,14 +299,15 @@
                                         </div>
 
                                         <a href="@job.SourceUrl" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm rounded-pill px-3 extra-small text-nowrap align-self-start">
-                                            View Job <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                            View Posting <i class="bi bi-box-arrow-up-right ms-1"></i>
                                         </a>
                                     </div>
 
                                     @if (!job.IsSuccess)
                                     {
-                                        <div class="alert alert-warning py-2 px-3 rounded-3 extra-small mt-2" role="alert">
-                                            <i class="bi bi-info-circle me-1"></i> @job.ErrorMessage
+                                        <div class="alert alert-warning py-2 px-3 rounded-3 extra-small mt-2 d-flex align-items-center gap-2" role="alert">
+                                            <i class="bi bi-info-circle flex-shrink-0"></i>
+                                            <span>@job.ErrorMessage</span>
                                         </div>
                                     }
                                     else

@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace FindJob.Services;
 
-public partial class JobExtractorService : IJobExtractorService
+public class JobExtractorService : IJobExtractorService
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IBdjobsService _bdjobsService;
@@ -34,7 +34,9 @@ public partial class JobExtractorService : IJobExtractorService
         try
         {
             var trimmed = url.Trim();
+            // Only purely numeric inputs (e.g. "1519924") represent standalone Bdjobs IDs
             if (Regex.IsMatch(trimmed, @"^\d{4,10}$")) return "Bdjobs";
+
             if (!trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && 
                 !trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
@@ -54,10 +56,10 @@ public partial class JobExtractorService : IJobExtractorService
             if (host.Contains("smartrecruiters.com")) return "SmartRecruiters";
             if (host.Contains("glassdoor.com")) return "Glassdoor";
             if (host.Contains("wellfound.com") || host.Contains("angel.co")) return "Wellfound";
-            if (host.Contains("remoteok.com") || host.Contains("weworkremotely.com")) return "Remote Job";
+            if (host.Contains("remoteok.com") || host.Contains("weworkremotely.com")) return "RemoteOK";
 
-            // Clean host e.g. "careers.google.com" -> "Google" or "microsoft.com"
-            var parts = host.Replace("www.", "").Replace("jobs.", "").Replace("careers.", "").Split('.');
+            // Clean host e.g. "careers.google.com" -> "Google", "jobs.apple.com" -> "Apple"
+            var parts = host.Replace("www.", "").Replace("jobs.", "").Replace("careers.", "").Replace("boards.", "").Split('.');
             if (parts.Length > 0 && parts[0].Length > 1)
             {
                 return char.ToUpper(parts[0][0]) + parts[0][1..];
@@ -75,21 +77,29 @@ public partial class JobExtractorService : IJobExtractorService
     {
         if (string.IsNullOrWhiteSpace(url))
         {
-            return new JobData { IsSuccess = false, ErrorMessage = "URL was empty." };
+            return new JobData { IsSuccess = false, ErrorMessage = "Please enter a valid job URL." };
         }
 
         var trimmedUrl = url.Trim();
         var domainLabel = ExtractDomainLabel(trimmedUrl);
 
-        // 1. If it is a Bdjobs URL or numeric ID, use the fast gateway extractor
-        if (domainLabel == "Bdjobs" || Regex.IsMatch(trimmedUrl, @"(?:bdjobs\.com|\b\d{5,10}\b)"))
+        // 1. Route to dedicated Bdjobs API gateway ONLY if URL is explicitly from bdjobs.com or is a bare numeric ID
+        bool isExplicitBdjobs = domainLabel == "Bdjobs" || 
+                                trimmedUrl.Contains("bdjobs.com", StringComparison.OrdinalIgnoreCase) || 
+                                Regex.IsMatch(trimmedUrl, @"^\d{4,10}$");
+
+        if (isExplicitBdjobs)
         {
             var bdjobsResult = await _bdjobsService.FetchJobDetailsAsync(trimmedUrl, cancellationToken);
             bdjobsResult.SourceDomain = "Bdjobs";
+            if (!bdjobsResult.IsSuccess && !string.IsNullOrWhiteSpace(bdjobsResult.ErrorMessage))
+            {
+                bdjobsResult.ErrorMessage = $"Unable to retrieve posting from Bdjobs (Listing #{bdjobsResult.JobId} may be expired or unavailable).";
+            }
             return bdjobsResult;
         }
 
-        // 2. Fetch and parse arbitrary webpage
+        // 2. Fetch and parse arbitrary webpage (Greenhouse, LinkedIn, Lever, Indeed, Career Sites)
         var jobData = new JobData
         {
             SourceUrl = trimmedUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? trimmedUrl : $"https://{trimmedUrl}",
@@ -104,13 +114,22 @@ public partial class JobExtractorService : IJobExtractorService
             request.Headers.UserAgent.ParseAdd(BrowserUserAgent);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xhtml+xml"));
+            request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue("en-US"));
+            request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue("en", 0.9));
 
             var response = await client.SendAsync(request, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
                 jobData.IsSuccess = false;
-                jobData.ErrorMessage = $"Webpage returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase}).";
+                var code = (int)response.StatusCode;
+                jobData.ErrorMessage = code switch
+                {
+                    404 => $"The job posting on {domainLabel} was not found (the listing may have been closed or removed).",
+                    403 or 401 => $"{domainLabel} requires login or restricted automated access. You can try viewing it directly in your browser.",
+                    429 => $"{domainLabel} rate limited the request. Please try again in a few moments.",
+                    _ => $"Unable to load job details from {domainLabel} (Server returned HTTP {code})."
+                };
                 return jobData;
             }
 
@@ -118,7 +137,7 @@ public partial class JobExtractorService : IJobExtractorService
             if (string.IsNullOrWhiteSpace(html))
             {
                 jobData.IsSuccess = false;
-                jobData.ErrorMessage = "Webpage returned empty content.";
+                jobData.ErrorMessage = $"Received empty content from {domainLabel}.";
                 return jobData;
             }
 
@@ -128,13 +147,13 @@ public partial class JobExtractorService : IJobExtractorService
         catch (OperationCanceledException)
         {
             jobData.IsSuccess = false;
-            jobData.ErrorMessage = "Request timed out while fetching webpage.";
+            jobData.ErrorMessage = $"Connection to {domainLabel} timed out. The career site took too long to respond.";
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to scrape job URL: {Url}", trimmedUrl);
             jobData.IsSuccess = false;
-            jobData.ErrorMessage = $"Could not extract job details ({ex.Message}).";
+            jobData.ErrorMessage = $"Unable to extract job details from {domainLabel} ({ex.Message}).";
         }
 
         return jobData;
@@ -195,7 +214,7 @@ public partial class JobExtractorService : IJobExtractorService
 
         if (string.IsNullOrWhiteSpace(jobData.Title))
         {
-            jobData.Title = ExtractTitleFromDom(doc.DocumentNode) ?? $"{jobData.SourceDomain} Opportunity";
+            jobData.Title = ExtractTitleFromDom(doc.DocumentNode) ?? $"{jobData.SourceDomain} Role";
         }
 
         if (string.IsNullOrWhiteSpace(jobData.Company))
@@ -349,19 +368,16 @@ public partial class JobExtractorService : IJobExtractorService
 
     private static string ExtractMainContentText(HtmlNode root)
     {
-        // Search for primary article / job container
         var mainContainer = root.SelectSingleNode(
             "//article|//main|//*[@role='main']|//*[contains(@class, 'job-description')]|//*[contains(@class, 'job-details')]|//*[contains(@id, 'job-description')]|//*[contains(@id, 'job-details')]|//*[contains(@class, 'description')]")
             ?? root.SelectSingleNode("//body") 
             ?? root;
 
-        // Convert list items to bullet points
         foreach (var li in mainContainer.SelectNodes(".//li") ?? Enumerable.Empty<HtmlNode>())
         {
             li.ParentNode?.ReplaceChild(HtmlNode.CreateNode($"\n• {li.InnerText.Trim()}"), li);
         }
 
-        // Convert breaks and paragraphs
         foreach (var p in mainContainer.SelectNodes(".//p|.//br|.//div|.//h1|.//h2|.//h3|.//h4|.//h5") ?? Enumerable.Empty<HtmlNode>())
         {
             p.ParentNode?.ReplaceChild(HtmlNode.CreateNode($"\n{p.InnerText.Trim()}\n"), p);
@@ -373,7 +389,6 @@ public partial class JobExtractorService : IJobExtractorService
         text = Regex.Replace(text, @"[ \t]{2,}", " ");
 
         var trimmed = text.Trim();
-        // Limit max length to avoid memory bloat
         return trimmed.Length > 8000 ? trimmed[..8000] : trimmed;
     }
 
@@ -413,7 +428,6 @@ public partial class JobExtractorService : IJobExtractorService
 
         if (!string.IsNullOrWhiteSpace(job.Responsibilities))
         {
-            // Split responsibilities into 500-char blocks if long
             var resp = job.Responsibilities;
             if (resp.Length > 800)
             {
@@ -470,7 +484,6 @@ public partial class JobExtractorService : IJobExtractorService
         var match = Regex.Match(url, @"\b(\d{5,10})\b");
         if (match.Success) return match.Groups[1].Value;
 
-        // Hash-based ID
         using var md5 = System.Security.Cryptography.MD5.Create();
         var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(url));
         return Convert.ToHexString(hash)[..8].ToLowerInvariant();
