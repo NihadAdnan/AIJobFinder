@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: ai-job-finder
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production

@@ -5,6 +5,13 @@ using Polly.Extensions.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Bind to dynamic PORT environment variable on Render / cloud containers
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
 // Add MVC services
 builder.Services.AddControllersWithViews();
 
