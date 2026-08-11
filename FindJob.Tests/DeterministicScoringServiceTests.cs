@@ -73,7 +73,37 @@ public class DeterministicScoringServiceTests
 
         Assert.NotNull(breakdown);
         Assert.True(breakdown.IsCapped);
-        Assert.Equal(60, breakdown.FinalScore);
+        Assert.True(breakdown.FinalScore <= 60);
         Assert.NotNull(breakdown.CapReason);
+    }
+
+    [Fact]
+    public void ComputeScore_CrossDomainMismatch_SoftwareEngineerApplyingForNurse_CapsScoreAt30Percent()
+    {
+        var resume = new ExtractedResumeProfile
+        {
+            CandidateName = "Tech Lead",
+            CurrentTitle = "Senior Software Engineer",
+            TotalYearsExperience = 5.0,
+            Degree = "B.Sc. in Computer Science",
+            Skills = new List<string> { "C#", "ASP.NET Core", "SQL Server", "Docker", "Angular" }
+        };
+
+        var jd = new ExtractedJdProfile
+        {
+            JobTitle = "Registered Nurse / ICU Nurse Specialist",
+            Seniority = "Senior",
+            MinYearsExperience = 5.0,
+            RequiredDegree = "Bachelor of Science in Nursing",
+            RequiredSkills = new List<string> { "Patient Care", "Triage", "BLS Certification", "Clinical Assessment", "ICU Nursing" },
+            NiceToHaveSkills = new List<string>()
+        };
+
+        var breakdown = _scoringService.ComputeScore(resume, jd, 0.90f);
+
+        Assert.NotNull(breakdown);
+        Assert.True(breakdown.IsCapped, "Score should be capped due to cross-domain mismatch");
+        Assert.True(breakdown.FinalScore <= 30, $"Expected score <= 30%, got {breakdown.FinalScore}%");
+        Assert.Contains("domain mismatch", breakdown.CapReason, StringComparison.OrdinalIgnoreCase);
     }
 }

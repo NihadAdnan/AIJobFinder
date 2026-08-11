@@ -1,6 +1,19 @@
+using System.Text.RegularExpressions;
 using FindJob.Models;
 
 namespace FindJob.Services;
+
+public enum DomainCategory
+{
+    SoftwareEngineering,
+    Healthcare,
+    FinanceAccounting,
+    SalesMarketing,
+    ConstructionCivil,
+    HospitalityServices,
+    EducationTeaching,
+    GeneralOffice
+}
 
 public class DeterministicScoringService : IDeterministicScoringService
 {
@@ -16,6 +29,11 @@ public class DeterministicScoringService : IDeterministicScoringService
         ExtractedJdProfile jd, 
         float semanticCosineSimilarity)
     {
+        // 0. Domain & Role Hierarchy Detection
+        var candidateDomain = DetectDomain(resume.CurrentTitle, resume.Skills);
+        var jdDomain = DetectDomain(jd.JobTitle, jd.RequiredSkills);
+        double domainRelevance = ComputeDomainRelevance(candidateDomain, jdDomain);
+
         // 1. Skill Score (35% weight)
         var (matchedRequired, missingRequired) = _skillDictionary.CompareSkills(resume.Skills, jd.RequiredSkills);
         var (matchedNice, _) = _skillDictionary.CompareSkills(resume.Skills, jd.NiceToHaveSkills);
@@ -32,26 +50,29 @@ public class DeterministicScoringService : IDeterministicScoringService
         }
         else
         {
-            // If no explicit required skills were extracted, compare candidate skills against general keywords
             skillScoreVal = matchedRequired.Count > 0 ? 80.0 : 65.0;
         }
+
+        // Apply domain relevance factor to skills
+        skillScoreVal *= domainRelevance;
         int skillScore = (int)Math.Clamp(Math.Round(skillScoreVal), 0, 100);
 
-        // 2. Experience Score (20% weight)
+        // 2. Experience Score (20% weight) — Weighted by Domain Relevance
+        double relevantYears = resume.TotalYearsExperience * domainRelevance;
         double expScoreVal;
         if (jd.MinYearsExperience <= 0)
         {
-            expScoreVal = 100.0;
+            expScoreVal = domainRelevance >= 0.8 ? 100.0 : 40.0;
         }
-        else if (resume.TotalYearsExperience >= jd.MinYearsExperience)
+        else if (relevantYears >= jd.MinYearsExperience)
         {
             expScoreVal = 100.0;
         }
         else
         {
-            // Prorate: e.g. 3 years out of 5 required -> 60% with baseline
-            double ratio = resume.TotalYearsExperience / jd.MinYearsExperience;
-            expScoreVal = Math.Max(20.0, ratio * 100.0);
+            // Prorate based on relevant domain experience
+            double ratio = relevantYears / jd.MinYearsExperience;
+            expScoreVal = Math.Max(10.0, ratio * 100.0);
         }
         int experienceScore = (int)Math.Clamp(Math.Round(expScoreVal), 0, 100);
 
@@ -67,6 +88,11 @@ public class DeterministicScoringService : IDeterministicScoringService
             2 => 65,
             _ => 45
         };
+
+        if (domainRelevance <= 0.25)
+        {
+            titleScore = 15; // Severe domain title mismatch
+        }
 
         // 4. Education Score (10% weight)
         int candEdu = GetEducationRank(resume.Degree);
@@ -84,15 +110,13 @@ public class DeterministicScoringService : IDeterministicScoringService
         }
 
         // 5. Semantic Vector Similarity Score (25% weight)
-        // Normalize cosine (-1..1 to 0..100)
-        int semanticScore = (int)Math.Clamp(Math.Round(Math.Max(0, semanticCosineSimilarity) * 100.0), 0, 100);
+        int semanticScore = (int)Math.Clamp(Math.Round(Math.Max(0, semanticCosineSimilarity) * 100.0 * domainRelevance), 0, 100);
         if (semanticScore == 0 && semanticCosineSimilarity <= 0f)
         {
-            // If vector check was offline, estimate from skill score & title
             semanticScore = (int)Math.Round((skillScore * 0.7) + (titleScore * 0.3));
         }
 
-        // 6. Weighted Sum
+        // 6. Weighted Sum Formula
         // Final = 0.35*Skill + 0.20*Exp + 0.10*Title + 0.10*Edu + 0.25*Semantic
         double weightedTotal = (0.35 * skillScore) +
                                (0.20 * experienceScore) +
@@ -102,18 +126,30 @@ public class DeterministicScoringService : IDeterministicScoringService
 
         int finalScore = (int)Math.Clamp(Math.Round(weightedTotal), 0, 100);
 
-        // 7. Mandatory Skill Hard-Cap
+        // 7. Mandatory Skill & Domain Misalignment Hard-Caps
         bool isCapped = false;
         string? capReason = null;
 
-        if (jd.RequiredSkills.Count >= 2)
+        if (domainRelevance <= 0.25)
+        {
+            isCapped = true;
+            if (finalScore > 30)
+            {
+                finalScore = 30;
+            }
+            capReason = $"Score capped at {finalScore}% due to major domain mismatch between {candidateDomain} and {jdDomain}. Non-transferable experience applied.";
+        }
+        else if (jd.RequiredSkills.Count >= 2)
         {
             double reqMatchPercent = (double)matchedRequired.Count / jd.RequiredSkills.Count;
-            if (reqMatchPercent < 0.40 && finalScore > 60)
+            if (reqMatchPercent < 0.40)
             {
-                finalScore = 60;
                 isCapped = true;
-                capReason = $"Score capped at 60% due to critical gaps in required core skills ({string.Join(", ", missingRequired.Take(3))}).";
+                if (finalScore > 60)
+                {
+                    finalScore = 60;
+                }
+                capReason = $"Score capped at {finalScore}% due to critical gaps in required core skills ({string.Join(", ", missingRequired.Take(3))}).";
             }
         }
 
@@ -128,6 +164,50 @@ public class DeterministicScoringService : IDeterministicScoringService
             IsCapped = isCapped,
             CapReason = capReason
         };
+    }
+
+    public static DomainCategory DetectDomain(string title, IEnumerable<string> skills)
+    {
+        var text = (title + " " + string.Join(" ", skills)).ToLowerInvariant();
+
+        if (Regex.IsMatch(text, @"\b(nurse|nursing|doctor|medical|hospital|clinical|patient|pharmacy|dentist|physician|triage|icu|health|healthcare|pharma|surgeon)\b", RegexOptions.IgnoreCase))
+            return DomainCategory.Healthcare;
+
+        if (Regex.IsMatch(text, @"\b(c#|\.net|asp\.net|java|python|javascript|typescript|react|angular|vue|node|developer|software|full stack|backend|frontend|devops|sql|engineer|coder|programmer|it|data scientist|ai|ml)\b", RegexOptions.IgnoreCase))
+            return DomainCategory.SoftwareEngineering;
+
+        if (Regex.IsMatch(text, @"\b(accountant|accounting|audit|tax|financial|finance|treasury|ledger|bookkeeper|banking|chartered)\b", RegexOptions.IgnoreCase))
+            return DomainCategory.FinanceAccounting;
+
+        if (Regex.IsMatch(text, @"\b(sales|marketing|seo|growth|business development|lead generation|digital marketing|campaign|account executive)\b", RegexOptions.IgnoreCase))
+            return DomainCategory.SalesMarketing;
+
+        if (Regex.IsMatch(text, @"\b(civil|construction|site engineer|autocad|structural|architect|architecture|surveyor|building|quantity surveyor)\b", RegexOptions.IgnoreCase))
+            return DomainCategory.ConstructionCivil;
+
+        if (Regex.IsMatch(text, @"\b(chef|cook|hotel|restaurant|waiter|hospitality|culinary|food|bartender|catering)\b", RegexOptions.IgnoreCase))
+            return DomainCategory.HospitalityServices;
+
+        if (Regex.IsMatch(text, @"\b(teacher|professor|lecturer|instructor|school|curriculum|teaching|tutor|faculty|principal)\b", RegexOptions.IgnoreCase))
+            return DomainCategory.EducationTeaching;
+
+        return DomainCategory.GeneralOffice;
+    }
+
+    public static double ComputeDomainRelevance(DomainCategory candidateDomain, DomainCategory jdDomain)
+    {
+        if (candidateDomain == jdDomain) return 1.0;
+
+        // Related / Transferable domains
+        if ((candidateDomain == DomainCategory.SoftwareEngineering && jdDomain == DomainCategory.GeneralOffice) ||
+            (candidateDomain == DomainCategory.SalesMarketing && jdDomain == DomainCategory.FinanceAccounting) ||
+            (candidateDomain == DomainCategory.SalesMarketing && jdDomain == DomainCategory.GeneralOffice))
+        {
+            return 0.60;
+        }
+
+        // Severe cross-domain mismatch
+        return 0.15;
     }
 
     private static int GetSeniorityRank(string? text)
