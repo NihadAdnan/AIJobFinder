@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - AI Job Finder (In-Memory RAG)</title>
+    <title>@ViewData["Title"] - AI Job Finder</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,36 +18,26 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body class="bg-gradient-dark min-vh-100 d-flex flex-column text-body">
-    <!-- Top Modern Navigation -->
+    <!-- Clean Top Navigation -->
     <header class="sticky-top glass-navbar shadow-sm">
         <div class="container-fluid px-lg-5 py-2 d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center gap-3">
-                <a class="navbar-brand d-flex align-items-center gap-2 text-decoration-none" href="/">
-                    <div class="brand-icon-box">
-                        <i class="bi bi-cpu-fill"></i>
-                    </div>
-                    <div>
-                        <span class="brand-title">AI Job Finder</span>
-                        <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle ms-2 d-none d-sm-inline-block">In-Memory RAG</span>
-                    </div>
-                </a>
-            </div>
+            <a class="navbar-brand d-flex align-items-center gap-2 text-decoration-none" href="/">
+                <div class="brand-icon-box">
+                    <i class="bi bi-cpu-fill"></i>
+                </div>
+                <span class="brand-title">AI Job Finder</span>
+            </a>
 
-            <div class="d-flex align-items-center gap-3">
-                <!-- Ollama Live Status Pill -->
-                <button type="button" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2 rounded-pill px-3 py-1 text-nowrap" id="ollamaStatusBtn" data-bs-toggle="modal" data-bs-target="#settingsModal" title="Click to configure Ollama">
+            <div class="d-flex align-items-center gap-2">
+                <!-- Ollama Status Pill -->
+                <button type="button" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2 rounded-pill px-3 py-1" id="ollamaStatusBtn" data-bs-toggle="modal" data-bs-target="#settingsModal" title="Ollama Settings">
                     <span class="status-dot status-dot-checking" id="ollamaStatusDot"></span>
                     <span id="ollamaStatusText" class="small fw-medium">Checking Ollama...</span>
-                    <i class="bi bi-gear-fill text-muted ms-1"></i>
+                    <i class="bi bi-gear text-muted"></i>
                 </button>
 
-                <!-- Stateless Badge -->
-                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3 py-2 d-none d-md-flex align-items-center gap-1">
-                    <i class="bi bi-shield-lock-fill text-info"></i> Zero Storage (Stateless)
-                </span>
-
                 <!-- Theme Switcher -->
-                <button class="btn btn-sm btn-outline-light rounded-circle theme-toggle-btn" id="themeToggleBtn" type="button" title="Toggle Theme">
+                <button class="btn btn-sm btn-outline-secondary rounded-circle theme-toggle-btn" id="themeToggleBtn" type="button" title="Toggle Theme">
                     <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
                 </button>
             </div>
@@ -67,71 +57,43 @@
             <div class="modal-content glass-card border-0 shadow-lg">
                 <div class="modal-header border-bottom border-secondary border-opacity-25 pb-3">
                     <h5 class="modal-title d-flex align-items-center gap-2" id="settingsModalLabel">
-                        <i class="bi bi-sliders text-primary"></i> Local Ollama Configuration
+                        <i class="bi bi-sliders text-primary"></i> Ollama Settings
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body py-4">
-                    <div class="alert alert-info d-flex align-items-start gap-2 py-2 px-3 mb-3 small" role="alert">
-                        <i class="bi bi-info-circle-fill mt-1 flex-shrink-0"></i>
-                        <div>
-                            Runs 100% locally with Ollama. No API keys or cloud tokens required.
-                        </div>
-                    </div>
-
                     <div class="mb-3">
-                        <label for="settingsBaseUrl" class="form-label small fw-semibold">Ollama Server URL</label>
+                        <label for="settingsBaseUrl" class="form-label small fw-semibold">Ollama URL</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-body-tertiary"><i class="bi bi-hdd-network"></i></span>
                             <input type="text" class="form-control" id="settingsBaseUrl" value="http://localhost:11434" placeholder="http://localhost:11434">
-                            <button class="btn btn-outline-primary" type="button" id="btnTestOllama">
-                                <i class="bi bi-arrow-repeat"></i> Test
-                            </button>
+                            <button class="btn btn-outline-primary" type="button" id="btnTestOllama">Test</button>
                         </div>
-                        <div class="form-text small" id="ollamaTestFeedback">Checking connection...</div>
+                        <div class="form-text small" id="ollamaTestFeedback"></div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="settingsChatModel" class="form-label small fw-semibold">LLM Scoring Model</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-body-tertiary"><i class="bi bi-robot"></i></span>
-                            <input type="text" class="form-control" id="settingsChatModel" value="llama3.1:8b" placeholder="llama3.1:8b, qwen2.5:7b, mistral...">
-                        </div>
-                        <div class="form-text small">Recommended: <code>llama3.1:8b</code> or <code>qwen2.5:7b</code></div>
+                        <label for="settingsChatModel" class="form-label small fw-semibold">LLM Model</label>
+                        <input type="text" class="form-control" id="settingsChatModel" value="llama3.1:8b" placeholder="llama3.1:8b">
                     </div>
 
                     <div class="mb-3">
-                        <label for="settingsEmbeddingModel" class="form-label small fw-semibold">Embedding Model (In-Memory RAG)</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-body-tertiary"><i class="bi bi-vector-pen"></i></span>
-                            <input type="text" class="form-control" id="settingsEmbeddingModel" value="nomic-embed-text" placeholder="nomic-embed-text, mxbai-embed-large...">
-                        </div>
-                        <div class="form-text small">Recommended: <code>nomic-embed-text</code> or <code>mxbai-embed-large</code></div>
+                        <label for="settingsEmbeddingModel" class="form-label small fw-semibold">Embedding Model</label>
+                        <input type="text" class="form-control" id="settingsEmbeddingModel" value="nomic-embed-text" placeholder="nomic-embed-text">
                     </div>
                 </div>
                 <div class="modal-footer border-top border-secondary border-opacity-25 pt-3">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" id="btnSaveSettings" data-bs-dismiss="modal">
-                        <i class="bi bi-check-lg me-1"></i> Save Settings
-                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="btnSaveSettings" data-bs-dismiss="modal">Save</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Footer -->
+    <!-- Minimal Footer -->
     <footer class="footer py-3 mt-auto border-top border-secondary border-opacity-25 glass-footer">
-        <div class="container-fluid px-lg-5 d-flex flex-column flex-sm-row align-items-center justify-content-between gap-2 text-muted small">
-            <div class="d-flex align-items-center gap-2">
-                <span>&copy; @DateTime.UtcNow.Year <strong>AI Job Finder</strong></span>
-                <span>&bull;</span>
-                <span class="text-secondary">ASP.NET 10 MVC + Ollama In-Memory RAG</span>
-            </div>
-            <div class="d-flex align-items-center gap-3">
-                <span class="d-flex align-items-center gap-1"><i class="bi bi-memory text-success"></i> 100% In-Memory</span>
-                <span>&bull;</span>
-                <span class="d-flex align-items-center gap-1"><i class="bi bi-shield-check text-primary"></i> Zero Logs/Storage</span>
-            </div>
+        <div class="container-fluid px-lg-5 d-flex align-items-center justify-content-between text-muted small">
+            <div>&copy; @DateTime.UtcNow.Year AI Job Finder</div>
+            <div class="text-secondary">Stateless &bull; Zero Storage</div>
         </div>
     </footer>
 
